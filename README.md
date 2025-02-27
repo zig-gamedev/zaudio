@@ -1,6 +1,6 @@
 # [zaudio](https://github.com/zig-gamedev/zaudio)
 
-Zig build package and wrapper for [miniaudio](https://github.com/mackron/miniaudio) v0.11.21
+Zig build package and wrapper for [miniaudio](https://github.com/mackron/miniaudio) v0.11.22
 
 As an example program please see [audio experiments (wgpu)](https://github.com/michal-z/zig-gamedev/tree/main/samples/audio_experiments_wgpu).
 
