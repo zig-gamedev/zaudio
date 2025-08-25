@@ -675,3 +675,42 @@ void WA_ma_sound_get_velocity(const ma_sound* sound, ma_vec3f* vout) {
     *vout = ma_sound_get_velocity(sound);
 }
 //--------------------------------------------------------------------------------------------------
+// ma_data_converter, required for decoder
+void zaudioDataConverterConfigInit(
+    ma_format formatIn, 
+    ma_format formatOut, 
+    ma_uint32 channelsIn, 
+    ma_uint32 channelsOut, 
+    ma_uint32 sampleRateIn, 
+    ma_uint32 sampleRateOut,
+    ma_data_converter_config* out_config,
+){
+    assert(out_config != NULL);
+    *out_config = ma_data_converter_config_init(formatIn, formatOut, channelsIn, channelsOut, sampleRateIn, sampleRateOut);
+}
+
+// ma_data_converter
+ma_result zaudioDataConverterCreate(
+    ma_data_converter_config* config,
+    ma_data_converter** out_handle
+){
+    assert(config != NULL && out_handle != NULL);
+    *out_handle = s_mem.onMalloc(sizeof(ma_data_converter), s_mem.pUserData);
+    ma_result res = ma_data_converter_init(config, &s_mem, *out_handle);
+    if (res != MA_SUCCESS){
+        s_mem.onFree(*out_handle, s_mem.pUserData);
+        *out_handle = NULL;
+    }
+    return res;
+}
+
+void zaudioDataConverterDestroy(
+    ma_data_converter* handle
+){
+    assert(handle != NULL);
+    ma_data_converter_uninit(handle, &s_mem);
+    s_mem.onFree(handle, s_mem.pUserData);
+}
+
+
+//--------------------------------------------------------------------------------------------------
