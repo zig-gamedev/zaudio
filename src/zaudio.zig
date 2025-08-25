@@ -267,6 +267,8 @@ pub const PanMode = enum(u32) {
     pan,
 };
 
+pub const DetherMode = enum(u32) { none, rectangle, triangle };
+
 pub const AttenuationModel = enum(u32) {
     none,
     inverse,
@@ -736,6 +738,136 @@ pub const AudioBuffer = opaque {
         return @as(*DataSource, @ptrCast(audio_buffer));
     }
 };
+//--------------------------------------------------------------------------------------------------
+//
+// Data Converter
+//
+//--------------------------------------------------------------------------------------------------
+pub const DataConverter = opaque {
+    pub const destroy = zaudioDataConverterDestroy;
+    extern fn zaudioDataConverterDestroy(handle: DataConverter) void;
+
+    pub fn create(config: Config) Error!*DataConverter {
+        var handle: ?*DataConverter = null;
+        try maybeError(zaudioDataConverterCreate(&config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioDataConverterCreate(config: Config, handle: ?*?*DataConverter) Result;
+
+    pub fn processPcmFrames(
+        converter: *DataConverter,
+        frames_in: *anyopaque,
+        frame_count_in: *u64,
+        frame_out: *anyopaque,
+        frame_count_out: *u64,
+    ) Error!void {
+        try maybeError(ma_data_converter_process_pcm_frames(
+            converter,
+            frames_in,
+            frame_count_in,
+            frame_out,
+            frame_count_out,
+        ));
+    }
+    extern fn ma_data_converter_process_pcm_frames(converter: *DataConverter, frames_in: *anyopaque, frame_count_in: *u64, frame_out: *anyopaque, frame_count_out: *u64) Result;
+
+    pub fn setRate(converter: *DataConverter, sample_rate_in: u32, sample_rate_out: u32) Error!void {
+        try maybeError(setRate(converter, sample_rate_in, sample_rate_out));
+    }
+    extern fn ma_data_converter_set_rate(converter: *DataConverter, sample_rate_in: u32, sample_rate_out: u32) Result;
+
+    pub fn setRateRatio(converter: *DataConverter, ratio_in_out: f32) Error!void {
+        try maybeError(ma_data_converter_set_rate_ratio(converter, ratio_in_out));
+    }
+    extern fn ma_data_converter_set_rate_ratio(converter: *DataConverter, ratioInOut: f32) Result;
+
+    pub fn getInputLatency(converter: *DataConverter) u64 {
+        ma_data_converter_get_input_latency(converter);
+    }
+    extern fn ma_data_converter_get_input_latency(converter: *DataConverter) u64;
+
+    pub fn getOutPutLatency(converter: *DataConverter) u64 {
+        ma_data_converter_get_output_latency(converter);
+    }
+    extern fn ma_data_converter_get_output_latency(converter: *DataConverter) u64;
+
+    pub fn getRequiredInputFrameCount(converter: *DataConverter, output_frame_count: u64) Error!u64 {
+        var input_frame_count: u64 = undefined;
+        try maybeError(ma_data_converter_get_required_input_frame_count(converter, output_frame_count, &input_frame_count));
+        return input_frame_count;
+    }
+    extern fn ma_data_converter_get_required_input_frame_count(converter: *DataConverter, output_frame_count: u64, input_frame_count: *u64) Result;
+
+    pub fn getExpectedOutputFrameCount(converter: *DataConverter, input_frame_count: u64) Error!u64 {
+        var output_frame_count: u64 = undefined;
+        try maybeError(ma_data_converter_get_expected_output_frame_count(converter, input_frame_count, &output_frame_count));
+        return output_frame_count;
+    }
+    extern fn ma_data_converter_get_expected_output_frame_count(converter: *DataConverter, input_frame_count: u64, output_frame_count: *u64) Result;
+
+    pub fn getInputChannelMap(converter: *DataConverter, channel_map: *Channel, channel_map_cap: usize) Error!void {
+        try maybeError(ma_data_converter_get_input_channel_map(converter, channel_map, channel_map_cap));
+    }
+    extern fn ma_data_converter_get_input_channel_map(converter: *DataConverter, channel_map: *Channel, channel_map_cap: usize) Result;
+
+    pub fn getOutputChannelMap(converter: *DataConverter, channel_map: *Channel, channel_map_cap: usize) Error!void {
+        try maybeError(ma_data_converter_get_output_channel_map(converter, channel_map, channel_map_cap));
+    }
+    extern fn ma_data_converter_get_output_channel_map(converter: *DataConverter, channel_map: *Channel, channel_map_cap: usize) Result;
+
+    pub fn reset(converter: *DataConverter) Error!void {
+        try maybeError(ma_data_converter_reset(converter));
+    }
+    extern fn ma_data_converter_reset(converter: *DataConverter) Result;
+
+    pub const ExecutionPath = enum(u32) {
+        passthrough,
+        format_only,
+        channels_only,
+        resample_only,
+        resample_first,
+        channels_first,
+    };
+
+    pub const Config = extern struct {
+        format_in: Format,
+        format_out: Format,
+        channels_in: u32,
+        channels_out: u32,
+        sample_rate_in: u32,
+        sample_rate_out: u32,
+        channel_map_in: *Channel,
+        channel_map_out: *Channel,
+        dither_mode: DetherMode,
+        channel_mix_mode: ChannelMixMode,
+        calculate_LFE_from_spatial_channels: u32,
+        channel_weighs_io_ptr: [*][*]f32, // [in][out]. Only used when mixingMode is set to ma_channel_mix_mode_custom_weights.
+        allow_dynamic_sample_rate: u32,
+        resampling: Resampler.Config,
+    };
+};
+
+//--------------------------------------------------------------------------------------------------
+//
+// Resampler (Incomplete, but since many of the function requires the type, especially the config,
+//                 we eventually need an opaque function to reduce code repetition)
+//
+//--------------------------------------------------------------------------------------------------
+pub const Resampler = opaque {
+    pub const Config = extern struct {
+        format: Format,
+        channels: u32,
+        sample_rate_in: u32,
+        sample_rate_out: u32,
+        algorithm: ResampleAlgorithm,
+        backend_vtable: ?*anyopaque, // TODO: Should be `*ma_resampling_backend_vtable` (custom resamplers).
+        backend_user_data: ?*anyopaque,
+        linear: extern struct {
+            lpf_order: u32,
+        },
+    };
+};
+
 //--------------------------------------------------------------------------------------------------
 //
 // Node
