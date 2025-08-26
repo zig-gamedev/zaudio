@@ -683,7 +683,7 @@ void zaudioDataConverterConfigInit(
     ma_uint32 channelsOut, 
     ma_uint32 sampleRateIn, 
     ma_uint32 sampleRateOut,
-    ma_data_converter_config* out_config,
+    ma_data_converter_config* out_config
 ){
     assert(out_config != NULL);
     *out_config = ma_data_converter_config_init(formatIn, formatOut, channelsIn, channelsOut, sampleRateIn, sampleRateOut);
@@ -712,5 +712,18 @@ void zaudioDataConverterDestroy(
     s_mem.onFree(handle, s_mem.pUserData);
 }
 
+//--------------------------------------------------------------------------------------------------
+// ma_decoder 
+void ma_decoder_config_init(
+    ma_format outputFormat, 
+    ma_uint32 outputChannels, 
+    ma_uint32 outputSampleRate,
+    ma_decoder_config* out_config
+){
+    assert(out_config != NULL);
+    *out_config = ma_decoder_config_init(outputFormat, outputChannels, outputSampleRate);
+}
+
+// There are more variants in decoder than all other types, 
 
 //--------------------------------------------------------------------------------------------------

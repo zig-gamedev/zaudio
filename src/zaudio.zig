@@ -267,7 +267,11 @@ pub const PanMode = enum(u32) {
     pan,
 };
 
-pub const DetherMode = enum(u32) { none, rectangle, triangle };
+pub const DitherMode = enum(u32) {
+    none,
+    rectangle,
+    triangle,
+};
 
 pub const AttenuationModel = enum(u32) {
     none,
@@ -288,6 +292,14 @@ pub const Format = enum(u32) {
     signed24,
     signed32,
     float32,
+};
+
+pub const EncodingFormat = enum(u32) {
+    unknown,
+    wav,
+    flac,
+    mp3,
+    vorbis,
 };
 
 pub const PerformanceProfile = enum(u32) {
@@ -450,6 +462,12 @@ pub const Vfs = extern struct {
     on_tell: ?*const fn (self: *Vfs, handle: FileHandle, offset: *i64) callconv(.C) Result,
     on_info: ?*const fn (self: *Vfs, handle: FileHandle, info: *FileInfo) callconv(.C) Result,
 };
+
+// these functions were originally located under vfs, but they seems to have no correlation to the type,
+// while decoder require such type in order to make it work, so I will temporary locate these functions in here:
+pub const readProc = fn (user_data: ?*anyopaque, buffer_out: ?*anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.C) Result;
+pub const seekProc = fn (user_data: ?*anyopaque, offset: i64, origin: Vfs.SeekOrigin) callconv(.C) Result;
+pub const tellProc = fn (user_data: ?*anyopaque, cursor: ?*i64) callconv(.C) Result;
 
 pub const Context = opaque {
     // TODO: Add methods.
@@ -738,6 +756,7 @@ pub const AudioBuffer = opaque {
         return @as(*DataSource, @ptrCast(audio_buffer));
     }
 };
+
 //--------------------------------------------------------------------------------------------------
 //
 // Data Converter
@@ -838,12 +857,80 @@ pub const DataConverter = opaque {
         sample_rate_out: u32,
         channel_map_in: *Channel,
         channel_map_out: *Channel,
-        dither_mode: DetherMode,
+        dither_mode: DitherMode,
         channel_mix_mode: ChannelMixMode,
         calculate_LFE_from_spatial_channels: u32,
         channel_weighs_io_ptr: [*][*]f32, // [in][out]. Only used when mixingMode is set to ma_channel_mix_mode_custom_weights.
         allow_dynamic_sample_rate: u32,
         resampling: Resampler.Config,
+    };
+};
+
+//--------------------------------------------------------------------------------------------------
+//
+// Decoder
+//
+//--------------------------------------------------------------------------------------------------
+pub const Decoder = opaque {
+
+    // here are the init functions, but after observed other examples
+    // I will skip the _w variant until there is a solution to handle wchar_t
+
+    pub const VTable = extern struct {
+        onInit: ?*const fn (
+            user_data: *anyopaque,
+            on_read: readProc,
+            on_seek: seekProc,
+            on_tell: tellProc,
+            read_seek_tell_user_data: *anyopaque,
+            config: *const BackendConfig,
+            allocation_callbacks: AllocationCallbacks,
+            backend: *?*?DataSource,
+        ) callconv(.C) Result,
+
+        onInitFile: ?*const fn (
+            user_data: *anyopaque,
+            file_path: [:0]const u8,
+            config: BackendConfig,
+            allocation_callbacks: AllocationCallbacks,
+            backend: *?*?DataSource,
+        ) callconv(.C) Result,
+
+        onInitMemory: ?*const fn (
+            user_data: *anyopaque,
+            data: *const anyopaque,
+            data_size: usize,
+            config: BackendConfig,
+            allocation_callbacks: AllocationCallbacks,
+            backend: *?*?DataSource,
+        ) callconv(.C) Result,
+
+        onUninit: ?*const fn (
+            user_data: *anyopaque,
+            backend: *?DataSource,
+            allocation_callbacks: AllocationCallbacks,
+        ) callconv(.C) void,
+    };
+
+    pub const Config = extern struct {
+        format: Format,
+        channels: u32,
+        sample_rate: u32,
+        channel_map: *Channel,
+        channel_mix_mode: ChannelMixMode,
+        dither_mode: DitherMode,
+        resampling: Resampler.Config,
+        allocation_callbacks: AllocationCallbacks,
+        encoding_format: EncodingFormat,
+        seek_point_count: u32,
+        custom_backend_vtable: ?*?*VTable,
+        custom_backend_count: u32,
+        custom_backend_user_data: *anyopaque,
+    };
+
+    pub const BackendConfig = extern struct {
+        preferred_format: Format,
+        seek_point_count: u32,
     };
 };
 
