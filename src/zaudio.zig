@@ -872,9 +872,77 @@ pub const DataConverter = opaque {
 //
 //--------------------------------------------------------------------------------------------------
 pub const Decoder = opaque {
+    pub const destroy = zaudioDecoderDestroy;
+    extern fn zaudioDecoderDestroy(handle: *Decoder) void;
 
     // here are the init functions, but after observed other examples
     // I will skip the _w variant until there is a solution to handle wchar_t
+    pub fn create(decoder_on_read: decoderReadProc, decoder_on_seek: decoderSeekProc, user_data: *anyopaque, config: Config) Error!*Decoder {
+        var handle: ?*Decoder = null;
+        try maybeError(zaudioDecoderCreate(decoder_on_read, decoder_on_seek, user_data, &config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioDecoderCreate(on_read: decoderReadProc, on_seek: decoderSeekProc, user_data: *anyopaque, config: *const Config, out_handle: *?*?Decoder) Result;
+
+    pub fn createFromMemory(data: ?*const anyopaque, data_size: usize, config: Config) Error!*Decoder {
+        var handle: ?*Decoder = null;
+        try maybeError(zaudioDecoderCreateFromMemory(data, data_size, &config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioDecoderCreateFromMemory(data: ?*const anyopaque, data_size: usize, config: *const Config, out_handle: ?*?*Decoder) Result;
+
+    pub fn createFromVfs(vfs: *Vfs, file_path: []const u8, config: Config) Error!*Decoder {
+        var handle: ?*Decoder = null;
+        try maybeError(zaudioDecoderCreateFromVfs(vfs, file_path, &config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioDecoderCreateFromVfs(vfs: *Vfs, file_path: []const u8, config: *const Config, out_handle: ?*?*Decoder) Result;
+
+    pub fn createFromFile(file_path: []const u8, config: Config) Error!*Decoder {
+        var handle: ?*Decoder = null;
+        try maybeError(zaudioDecoderCreateFromFile(file_path, &config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioDecoderCreateFromFile(file_path: []const u8, config: *const Config, out_handle: ?*?*Decoder) Result;
+
+    // The remaing related functions for manipulate the samples:
+    pub fn readPCMFrame(decoder: *Decoder, frames_count: u64, frames_read: *u64) Error!*anyopaque {
+        var frame_out: anyopaque = undefined;
+        try maybeError(ma_decoder_read_pcm_frame(decoder, &frame_out, frames_count, frames_read));
+        return frame_out;
+    }
+    extern fn ma_decoder_read_pcm_frame(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: ?*u64) Result;
+
+    pub fn seekToPCMFrame(decoder: *Decoder, frame_index: u64) Error!void {
+        try maybeError(ma_decoder_seek_to_pcm_frame(decoder, frame_index));
+    }
+    extern fn ma_decoder_seek_to_pcm_frame(decoder: *Decoder, frame_index: u64) Result;
+
+    pub fn getDataFormat(decoder: *Decoder, format: *Format, channels: *u32, sample_rate: *u32, channel_map: [*]Channel, channel_map_cap: usize) Error!void {
+        try maybeError(ma_decoder_get_data_format(decoder, format, channels, sample_rate, channel_map, channel_map_cap));
+    }
+    extern fn ma_decoder_get_data_format(decoder: *Decoder, format: *Format, channels: *u32, sample_rate: *u32, channel_map: [*]Channel, channel_map_cap: usize) Result;
+
+    pub fn getCursorInPCMFrames(decoder: *Decoder) Error!u64 {
+        var cursor: *u64 = undefined;
+        try maybeError(ma_decoder_get_cursor_in_pcm_frames(decoder, &cursor));
+        return cursor.*;
+    }
+    extern fn ma_decoder_get_cursor_in_pcm_frames(decoder: *Decoder, cursor: *u64) Result;
+
+    pub fn getLengthInPCMFrames(decoder: *Decoder) Error!u64 {
+        var length: *u64 = undefined;
+        try maybeError(ma_decoder_get_length_in_pcm_frames(decoder, &length));
+        return length.*;
+    }
+    extern fn ma_decoder_get_length_in_pcm_frames(decoder: *Decoder, length: *u64) Result;
+
+    pub fn getAvailableFrames(decoder: *Decoder) Error!u64 {
+        var available_frames: *u64 = undefined;
+        try maybeError(ma_decoder_get_available_frames(decoder, &available_frames));
+        return available_frames.*;
+    }
+    extern fn ma_decoder_get_available_frames(decoder: *Decoder, available_frames: *u64) Result;
 
     pub const VTable = extern struct {
         onInit: ?*const fn (
@@ -933,6 +1001,10 @@ pub const Decoder = opaque {
         seek_point_count: u32,
     };
 };
+
+pub const decoderReadProc = fn (decoder: *Decoder, buffer_out: *anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.C) Result;
+pub const decoderSeekProc = fn (decoder: *Decoder, byte_offset: i64, origin: Vfs.SeekOrigin) Result;
+pub const decoderTellProc = fn (decoder: *Decoder, cursor: *i64) Result;
 
 //--------------------------------------------------------------------------------------------------
 //

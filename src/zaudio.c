@@ -713,8 +713,8 @@ void zaudioDataConverterDestroy(
 }
 
 //--------------------------------------------------------------------------------------------------
-// ma_decoder 
-void ma_decoder_config_init(
+// ma_decoder zaudioDataConverterConfigInit
+void zaudioDecoderConfigInit(
     ma_format outputFormat, 
     ma_uint32 outputChannels, 
     ma_uint32 outputSampleRate,
@@ -760,7 +760,7 @@ ma_result zaudioDecoderCreateFromMemory(
     return res;       
 }
 
-ma_result zaudioDecoderCreateVfs(
+ma_result zaudioDecoderCreateFromVfs(
     ma_vfs* vfs, 
     const char* file_path, 
     const ma_decoder_config* config, 
@@ -776,7 +776,7 @@ ma_result zaudioDecoderCreateVfs(
     return res;     
 }
 
-ma_result zaudioDecoderFile(
+ma_result zaudioDecoderCreateFromFile(
     const char* file_path, 
     const ma_decoder_config* config, 
     ma_decoder** out_handle
@@ -789,6 +789,14 @@ ma_result zaudioDecoderFile(
         *out_handle = NULL;
     }
     return res;      
+}
+
+ma_result zaudioDecoderDestroy(
+    ma_decoder* handle
+){
+    assert(handle != NULL);
+    ma_data_converter_uninit(handle, &s_mem);
+    s_mem.onFree(handle, s_mem.pUserData);
 }
 
 //--------------------------------------------------------------------------------------------------
