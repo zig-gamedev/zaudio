@@ -724,6 +724,71 @@ void ma_decoder_config_init(
     *out_config = ma_decoder_config_init(outputFormat, outputChannels, outputSampleRate);
 }
 
-// There are more variants in decoder than all other types, 
+// There are more variants in decoder than all other types, but I will only handle the non-w type
+// since the other type with the similar file access method don't include such type as well
+// unless there is a good solution for wchar_t.
+ma_result zaudioDecoderCreate(
+    ma_decoder_read_proc on_read, 
+    ma_decoder_seek_proc on_seek, 
+    void* user_data, 
+    const ma_decoder_config* config, 
+    ma_decoder** out_handle
+){
+    assert(user_data!= NULL && config != NULL && out_handle != NULL);
+    *out_handle = s_mem.onMalloc(sizeof(ma_decoder), s_mem.pUserData);
+    ma_result res = ma_decoder_init(on_read, on_seek, user_data, config, out_handle);
+    if (res != MA_SUCCESS){
+        s_mem.onFree(*out_handle, s_mem.pUserData);
+        *out_handle = NULL;
+    }
+    return res;    
+}
+
+ma_result zaudioDecoderCreateFromMemory(
+    const void* data, 
+    size_t data_size, 
+    const ma_decoder_config* config, 
+    ma_decoder** out_handle
+){
+    assert(data != NULL && config != NULL && decoder != NULL);
+    *out_handle = s_mem.onMalloc(sizeof(ma_decoder), s_mem.pUserData);
+    ma_result res = ma_decoder_init_memory(data, data_size, config, out_handle);
+    if (res != MA_SUCCESS){
+        s_mem.onFree(*out_handle, s_mem.pUserData);
+        *out_handle = NULL;
+    }
+    return res;       
+}
+
+ma_result zaudioDecoderCreateVfs(
+    ma_vfs* vfs, 
+    const char* file_path, 
+    const ma_decoder_config* config, 
+    ma_decoder** out_handle
+){
+    assert(vfs != NULL && file_path != NULL && config != NULL && out_handle != NULL);
+    *out_handle = s_mem.onMalloc(sizeof(ma_decoder), s_mem.pUserData);
+    ma_result res = ma_decoder_init_vfs(vfs, file_path, config, out_handle);
+    if (res != MA_SUCCESS){
+        s_mem.onFree(*out_handle, s_mem.pUserData);
+        *out_handle = NULL;
+    }
+    return res;     
+}
+
+ma_result zaudioDecoderFile(
+    const char* file_path, 
+    const ma_decoder_config* config, 
+    ma_decoder** out_handle
+){
+    assert(file_path != NULL && config != NULL, out_handle != NULL);
+    *out_handle = s_mem.onMalloc(sizeof(ma_decoder), s_mem.pUserData);
+    ma_result res = ma_decoder_init_file(file_path, config, out_handle);
+    if (res != MA_SUCCESS){
+        s_mem.onFree(*out_handle, s_mem.pUserData);
+        *out_handle = NULL;
+    }
+    return res;      
+}
 
 //--------------------------------------------------------------------------------------------------
