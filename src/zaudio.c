@@ -724,6 +724,10 @@ void zaudioDecoderConfigInit(
     *out_config = ma_decoder_config_init(outputFormat, outputChannels, outputSampleRate);
 }
 
+void zaudioDecoderConfigInitDefault(ma_decoder_config* out_config){
+    *out_config = ma_decoder_config_init_default();
+}
+
 // There are more variants in decoder than all other types, but I will only handle the non-w type
 // since the other type with the similar file access method don't include such type as well
 // unless there is a good solution for wchar_t.

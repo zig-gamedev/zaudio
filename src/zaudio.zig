@@ -906,12 +906,12 @@ pub const Decoder = opaque {
     extern fn zaudioDecoderCreateFromFile(file_path: [*:0]const u8, config: *const Config, out_handle: ?*?*Decoder) Result;
 
     // The remaing related functions for manipulate the samples:
-    pub fn readPCMFrame(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: *u64) Error!void {
+    pub fn readPCMFrames(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: ?*u64) Error!void {
         try maybeError(ma_decoder_read_pcm_frames(decoder, frame_out, frames_count, frames_read));
     }
     extern fn ma_decoder_read_pcm_frames(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: ?*u64) Result;
 
-    pub fn seekToPCMFrame(decoder: *Decoder, frame_index: u64) Error!void {
+    pub fn seekToPCMFrames(decoder: *Decoder, frame_index: u64) Error!void {
         try maybeError(ma_decoder_seek_to_pcm_frame(decoder, frame_index));
     }
     extern fn ma_decoder_seek_to_pcm_frame(decoder: *Decoder, frame_index: u64) Result;
@@ -992,6 +992,20 @@ pub const Decoder = opaque {
         custom_backend_vtable: ?*?*VTable,
         custom_backend_count: u32,
         custom_backend_user_data: *anyopaque,
+
+        pub fn initDefault() Config {
+            var config: Config = undefined;
+            zaudioDecoderConfigInitDefault(&config);
+            return config;
+        }
+        extern fn zaudioDecoderConfigInitDefault(out_config: *Config) void;
+
+        pub fn init(output_format: Format, output_channels: u32, output_sample_rate: u32) Config {
+            var config: Config = undefined;
+            zaudioDecoderConfigInit(output_format, output_channels, output_sample_rate, &config);
+            return config;
+        }
+        extern fn zaudioDecoderConfigInit(output_format: Format, output_channels: u32, output_sample_rate: u32, out_config: *Config) void;
     };
 
     pub const BackendConfig = extern struct {
