@@ -465,9 +465,9 @@ pub const Vfs = extern struct {
 
 // these functions were originally located under vfs, but they seems to have no correlation to the type,
 // while decoder require such type in order to make it work, so I will temporary locate these functions in here:
-pub const readProc = fn (user_data: ?*anyopaque, buffer_out: ?*anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.C) Result;
-pub const seekProc = fn (user_data: ?*anyopaque, offset: i64, origin: Vfs.SeekOrigin) callconv(.C) Result;
-pub const tellProc = fn (user_data: ?*anyopaque, cursor: ?*i64) callconv(.C) Result;
+pub const readProc = *const fn (user_data: ?*anyopaque, buffer_out: ?*anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.C) Result;
+pub const seekProc = *const fn (user_data: ?*anyopaque, offset: i64, origin: Vfs.SeekOrigin) callconv(.C) Result;
+pub const tellProc = *const fn (user_data: ?*anyopaque, cursor: ?*i64) callconv(.C) Result;
 
 pub const Context = opaque {
     // TODO: Add methods.
@@ -764,14 +764,14 @@ pub const AudioBuffer = opaque {
 //--------------------------------------------------------------------------------------------------
 pub const DataConverter = opaque {
     pub const destroy = zaudioDataConverterDestroy;
-    extern fn zaudioDataConverterDestroy(handle: DataConverter) void;
+    extern fn zaudioDataConverterDestroy(handle: *DataConverter) void;
 
     pub fn create(config: Config) Error!*DataConverter {
         var handle: ?*DataConverter = null;
         try maybeError(zaudioDataConverterCreate(&config, &handle));
         return handle.?;
     }
-    extern fn zaudioDataConverterCreate(config: Config, handle: ?*?*DataConverter) Result;
+    extern fn zaudioDataConverterCreate(config: *const Config, handle: ?*?*DataConverter) Result;
 
     pub fn processPcmFrames(
         converter: *DataConverter,
@@ -791,7 +791,7 @@ pub const DataConverter = opaque {
     extern fn ma_data_converter_process_pcm_frames(converter: *DataConverter, frames_in: *anyopaque, frame_count_in: *u64, frame_out: *anyopaque, frame_count_out: *u64) Result;
 
     pub fn setRate(converter: *DataConverter, sample_rate_in: u32, sample_rate_out: u32) Error!void {
-        try maybeError(setRate(converter, sample_rate_in, sample_rate_out));
+        try maybeError(ma_data_converter_set_rate(converter, sample_rate_in, sample_rate_out));
     }
     extern fn ma_data_converter_set_rate(converter: *DataConverter, sample_rate_in: u32, sample_rate_out: u32) Result;
 
@@ -801,12 +801,12 @@ pub const DataConverter = opaque {
     extern fn ma_data_converter_set_rate_ratio(converter: *DataConverter, ratioInOut: f32) Result;
 
     pub fn getInputLatency(converter: *DataConverter) u64 {
-        ma_data_converter_get_input_latency(converter);
+        return ma_data_converter_get_input_latency(converter);
     }
     extern fn ma_data_converter_get_input_latency(converter: *DataConverter) u64;
 
     pub fn getOutPutLatency(converter: *DataConverter) u64 {
-        ma_data_converter_get_output_latency(converter);
+        return ma_data_converter_get_output_latency(converter);
     }
     extern fn ma_data_converter_get_output_latency(converter: *DataConverter) u64;
 
@@ -891,27 +891,25 @@ pub const Decoder = opaque {
     }
     extern fn zaudioDecoderCreateFromMemory(data: ?*const anyopaque, data_size: usize, config: *const Config, out_handle: ?*?*Decoder) Result;
 
-    pub fn createFromVfs(vfs: *Vfs, file_path: []const u8, config: Config) Error!*Decoder {
+    pub fn createFromVfs(vfs: *Vfs, file_path: [:0]const u8, config: Config) Error!*Decoder {
         var handle: ?*Decoder = null;
-        try maybeError(zaudioDecoderCreateFromVfs(vfs, file_path, &config, &handle));
+        try maybeError(zaudioDecoderCreateFromVfs(vfs, file_path.ptr, &config, &handle));
         return handle.?;
     }
-    extern fn zaudioDecoderCreateFromVfs(vfs: *Vfs, file_path: []const u8, config: *const Config, out_handle: ?*?*Decoder) Result;
+    extern fn zaudioDecoderCreateFromVfs(vfs: *Vfs, file_path: [*:0]const u8, config: *const Config, out_handle: ?*?*Decoder) Result;
 
-    pub fn createFromFile(file_path: []const u8, config: Config) Error!*Decoder {
+    pub fn createFromFile(file_path: [:0]const u8, config: Config) Error!*Decoder {
         var handle: ?*Decoder = null;
-        try maybeError(zaudioDecoderCreateFromFile(file_path, &config, &handle));
+        try maybeError(zaudioDecoderCreateFromFile(file_path.ptr, &config, &handle));
         return handle.?;
     }
-    extern fn zaudioDecoderCreateFromFile(file_path: []const u8, config: *const Config, out_handle: ?*?*Decoder) Result;
+    extern fn zaudioDecoderCreateFromFile(file_path: [*:0]const u8, config: *const Config, out_handle: ?*?*Decoder) Result;
 
     // The remaing related functions for manipulate the samples:
-    pub fn readPCMFrame(decoder: *Decoder, frames_count: u64, frames_read: *u64) Error!*anyopaque {
-        var frame_out: anyopaque = undefined;
-        try maybeError(ma_decoder_read_pcm_frame(decoder, &frame_out, frames_count, frames_read));
-        return frame_out;
+    pub fn readPCMFrame(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: *u64) Error!void {
+        try maybeError(ma_decoder_read_pcm_frames(decoder, frame_out, frames_count, frames_read));
     }
-    extern fn ma_decoder_read_pcm_frame(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: ?*u64) Result;
+    extern fn ma_decoder_read_pcm_frames(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: ?*u64) Result;
 
     pub fn seekToPCMFrame(decoder: *Decoder, frame_index: u64) Error!void {
         try maybeError(ma_decoder_seek_to_pcm_frame(decoder, frame_index));
@@ -924,23 +922,23 @@ pub const Decoder = opaque {
     extern fn ma_decoder_get_data_format(decoder: *Decoder, format: *Format, channels: *u32, sample_rate: *u32, channel_map: [*]Channel, channel_map_cap: usize) Result;
 
     pub fn getCursorInPCMFrames(decoder: *Decoder) Error!u64 {
-        var cursor: *u64 = undefined;
+        var cursor: u64 = undefined;
         try maybeError(ma_decoder_get_cursor_in_pcm_frames(decoder, &cursor));
-        return cursor.*;
+        return cursor;
     }
     extern fn ma_decoder_get_cursor_in_pcm_frames(decoder: *Decoder, cursor: *u64) Result;
 
     pub fn getLengthInPCMFrames(decoder: *Decoder) Error!u64 {
-        var length: *u64 = undefined;
+        var length: u64 = undefined;
         try maybeError(ma_decoder_get_length_in_pcm_frames(decoder, &length));
-        return length.*;
+        return length;
     }
     extern fn ma_decoder_get_length_in_pcm_frames(decoder: *Decoder, length: *u64) Result;
 
     pub fn getAvailableFrames(decoder: *Decoder) Error!u64 {
-        var available_frames: *u64 = undefined;
+        var available_frames: u64 = undefined;
         try maybeError(ma_decoder_get_available_frames(decoder, &available_frames));
-        return available_frames.*;
+        return available_frames;
     }
     extern fn ma_decoder_get_available_frames(decoder: *Decoder, available_frames: *u64) Result;
 
@@ -953,15 +951,15 @@ pub const Decoder = opaque {
             read_seek_tell_user_data: *anyopaque,
             config: *const BackendConfig,
             allocation_callbacks: AllocationCallbacks,
-            backend: *?*?DataSource,
+            backend: **DataSource,
         ) callconv(.C) Result,
 
         onInitFile: ?*const fn (
             user_data: *anyopaque,
-            file_path: [:0]const u8,
+            file_path: [*:0]const u8,
             config: BackendConfig,
             allocation_callbacks: AllocationCallbacks,
-            backend: *?*?DataSource,
+            backend: **DataSource,
         ) callconv(.C) Result,
 
         onInitMemory: ?*const fn (
@@ -970,12 +968,12 @@ pub const Decoder = opaque {
             data_size: usize,
             config: BackendConfig,
             allocation_callbacks: AllocationCallbacks,
-            backend: *?*?DataSource,
+            backend: **DataSource,
         ) callconv(.C) Result,
 
         onUninit: ?*const fn (
             user_data: *anyopaque,
-            backend: *?DataSource,
+            backend: *DataSource,
             allocation_callbacks: AllocationCallbacks,
         ) callconv(.C) void,
     };

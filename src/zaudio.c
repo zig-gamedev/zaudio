@@ -736,7 +736,7 @@ ma_result zaudioDecoderCreate(
 ){
     assert(user_data!= NULL && config != NULL && out_handle != NULL);
     *out_handle = s_mem.onMalloc(sizeof(ma_decoder), s_mem.pUserData);
-    ma_result res = ma_decoder_init(on_read, on_seek, user_data, config, out_handle);
+    ma_result res = ma_decoder_init(on_read, on_seek, user_data, config, *out_handle);
     if (res != MA_SUCCESS){
         s_mem.onFree(*out_handle, s_mem.pUserData);
         *out_handle = NULL;
@@ -750,9 +750,9 @@ ma_result zaudioDecoderCreateFromMemory(
     const ma_decoder_config* config, 
     ma_decoder** out_handle
 ){
-    assert(data != NULL && config != NULL && decoder != NULL);
+    assert(data != NULL && config != NULL && out_handle != NULL);
     *out_handle = s_mem.onMalloc(sizeof(ma_decoder), s_mem.pUserData);
-    ma_result res = ma_decoder_init_memory(data, data_size, config, out_handle);
+    ma_result res = ma_decoder_init_memory(data, data_size, config, *out_handle);
     if (res != MA_SUCCESS){
         s_mem.onFree(*out_handle, s_mem.pUserData);
         *out_handle = NULL;
@@ -768,7 +768,7 @@ ma_result zaudioDecoderCreateFromVfs(
 ){
     assert(vfs != NULL && file_path != NULL && config != NULL && out_handle != NULL);
     *out_handle = s_mem.onMalloc(sizeof(ma_decoder), s_mem.pUserData);
-    ma_result res = ma_decoder_init_vfs(vfs, file_path, config, out_handle);
+    ma_result res = ma_decoder_init_vfs(vfs, file_path, config, *out_handle);
     if (res != MA_SUCCESS){
         s_mem.onFree(*out_handle, s_mem.pUserData);
         *out_handle = NULL;
@@ -781,9 +781,9 @@ ma_result zaudioDecoderCreateFromFile(
     const ma_decoder_config* config, 
     ma_decoder** out_handle
 ){
-    assert(file_path != NULL && config != NULL, out_handle != NULL);
+    assert(file_path != NULL && config != NULL && out_handle != NULL);
     *out_handle = s_mem.onMalloc(sizeof(ma_decoder), s_mem.pUserData);
-    ma_result res = ma_decoder_init_file(file_path, config, out_handle);
+    ma_result res = ma_decoder_init_file(file_path, config, *out_handle);
     if (res != MA_SUCCESS){
         s_mem.onFree(*out_handle, s_mem.pUserData);
         *out_handle = NULL;
@@ -795,7 +795,7 @@ ma_result zaudioDecoderDestroy(
     ma_decoder* handle
 ){
     assert(handle != NULL);
-    ma_data_converter_uninit(handle, &s_mem);
+    ma_decoder_uninit(handle);
     s_mem.onFree(handle, s_mem.pUserData);
 }
 
