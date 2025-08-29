@@ -17,7 +17,7 @@ pub fn init(allocator: std.mem.Allocator) void {
 
     zaudioMemInit();
 }
-extern fn zaudioMemInit() callconv(.C) void;
+extern fn zaudioMemInit() callconv(.c) void;
 
 pub fn deinit() void {
     assert(mem_allocator != null);
@@ -406,15 +406,15 @@ pub const MonoExpansionMode = enum(u32) {
 pub const AllocationCallbacks = extern struct {
     user_data: ?*anyopaque,
 
-    onMalloc: ?*const fn (len: usize, user_data: ?*anyopaque) callconv(.C) ?*anyopaque,
+    onMalloc: ?*const fn (len: usize, user_data: ?*anyopaque) callconv(.c) ?*anyopaque,
 
     onRealloc: ?*const fn (
         ptr: ?*anyopaque,
         len: usize,
         user_data: ?*anyopaque,
-    ) callconv(.C) ?*anyopaque,
+    ) callconv(.c) ?*anyopaque,
 
-    onFree: ?*const fn (ptr: ?*anyopaque, user_data: ?*anyopaque) callconv(.C) void,
+    onFree: ?*const fn (ptr: ?*anyopaque, user_data: ?*anyopaque) callconv(.c) void,
 };
 
 pub const Bool32 = enum(u32) {
@@ -453,21 +453,21 @@ pub const Vfs = extern struct {
         size_in_bytes: usize,
     };
 
-    on_open: ?*const fn (self: *Vfs, file_path: [*:0]const u8, mode: OpenMode, handle: *FileHandle) callconv(.C) Result,
-    on_openw: ?*const fn (self: *Vfs, file_path: [*:0]const u32, mode: OpenMode, handle: *FileHandle) callconv(.C) Result,
-    on_close: ?*const fn (self: *Vfs, handle: FileHandle) callconv(.C) Result,
-    on_read: ?*const fn (self: *Vfs, handle: FileHandle, dst: [*]u8, size: usize, bytes_read: *usize) callconv(.C) Result,
-    on_write: ?*const fn (self: *Vfs, handle: FileHandle, src: [*]const u8, size: usize, bytes_written: *usize) callconv(.C) Result,
-    on_seek: ?*const fn (self: *Vfs, handle: FileHandle, offset: i64, origin: SeekOrigin) callconv(.C) Result,
-    on_tell: ?*const fn (self: *Vfs, handle: FileHandle, offset: *i64) callconv(.C) Result,
-    on_info: ?*const fn (self: *Vfs, handle: FileHandle, info: *FileInfo) callconv(.C) Result,
+    on_open: ?*const fn (self: *Vfs, file_path: [*:0]const u8, mode: OpenMode, handle: *FileHandle) callconv(.c) Result,
+    on_openw: ?*const fn (self: *Vfs, file_path: [*:0]const u32, mode: OpenMode, handle: *FileHandle) callconv(.c) Result,
+    on_close: ?*const fn (self: *Vfs, handle: FileHandle) callconv(.c) Result,
+    on_read: ?*const fn (self: *Vfs, handle: FileHandle, dst: [*]u8, size: usize, bytes_read: *usize) callconv(.c) Result,
+    on_write: ?*const fn (self: *Vfs, handle: FileHandle, src: [*]const u8, size: usize, bytes_written: *usize) callconv(.c) Result,
+    on_seek: ?*const fn (self: *Vfs, handle: FileHandle, offset: i64, origin: SeekOrigin) callconv(.c) Result,
+    on_tell: ?*const fn (self: *Vfs, handle: FileHandle, offset: *i64) callconv(.c) Result,
+    on_info: ?*const fn (self: *Vfs, handle: FileHandle, info: *FileInfo) callconv(.c) Result,
 };
 
 // these functions were originally located under vfs, but they seems to have no correlation to the type,
 // while decoder require such type in order to make it work, so I will temporary locate these functions in here:
-pub const readProc = *const fn (user_data: ?*anyopaque, buffer_out: ?*anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.C) Result;
-pub const seekProc = *const fn (user_data: ?*anyopaque, offset: i64, origin: Vfs.SeekOrigin) callconv(.C) Result;
-pub const tellProc = *const fn (user_data: ?*anyopaque, cursor: ?*i64) callconv(.C) Result;
+pub const readProc = *const fn (user_data: ?*anyopaque, buffer_out: ?*anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.c) Result;
+pub const seekProc = *const fn (user_data: ?*anyopaque, offset: i64, origin: Vfs.SeekOrigin) callconv(.c) Result;
+pub const tellProc = *const fn (user_data: ?*anyopaque, cursor: ?*i64) callconv(.c) Result;
 
 pub const Context = opaque {
     // TODO: Add methods.
@@ -489,7 +489,7 @@ pub const DataSourceBase = extern struct {
     loop_end_in_frames: u64,
     p_current: *DataSource,
     p_next: *DataSource,
-    onGetNext: ?*const fn (*DataSource) callconv(.C) void,
+    onGetNext: ?*const fn (*DataSource) callconv(.c) void,
     is_looping: Bool32,
 };
 
@@ -525,9 +525,9 @@ pub const DataSource = opaque {
             frames_out: ?*anyopaque,
             frame_count: u64,
             frames_read: *u64,
-        ) callconv(.C) Result,
+        ) callconv(.c) Result,
 
-        onSeek: ?*const fn (ds: *DataSource, frame_index: u64) callconv(.C) Result,
+        onSeek: ?*const fn (ds: *DataSource, frame_index: u64) callconv(.c) Result,
 
         onGetDataFormat: ?*const fn (
             ds: *DataSource,
@@ -536,13 +536,13 @@ pub const DataSource = opaque {
             sample_rate: ?*u32,
             channel_map: ?[*]Channel,
             channel_map_cap: usize,
-        ) callconv(.C) Result,
+        ) callconv(.c) Result,
 
-        onGetCursor: ?*const fn (ds: *DataSource, cursor: ?*u64) callconv(.C) Result,
+        onGetCursor: ?*const fn (ds: *DataSource, cursor: ?*u64) callconv(.c) Result,
 
-        onGetLength: ?*const fn (ds: *DataSource, length: ?*u64) callconv(.C) Result,
+        onGetLength: ?*const fn (ds: *DataSource, length: ?*u64) callconv(.c) Result,
 
-        onSetLooping: ?*const fn (ds: *DataSource, is_looping: Bool32) callconv(.C) Result,
+        onSetLooping: ?*const fn (ds: *DataSource, is_looping: Bool32) callconv(.c) Result,
 
         flags: Flags,
     };
@@ -824,15 +824,15 @@ pub const DataConverter = opaque {
     }
     extern fn ma_data_converter_get_expected_output_frame_count(converter: *DataConverter, input_frame_count: u64, output_frame_count: *u64) Result;
 
-    pub fn getInputChannelMap(converter: *DataConverter, channel_map: *Channel, channel_map_cap: usize) Error!void {
-        try maybeError(ma_data_converter_get_input_channel_map(converter, channel_map, channel_map_cap));
+    pub fn getInputChannelMap(converter: *DataConverter, channel_map: ?[]Channel, channel_map_cap: usize) Error!void {
+        try maybeError(ma_data_converter_get_input_channel_map(converter, channel_map.ptr, channel_map_cap));
     }
-    extern fn ma_data_converter_get_input_channel_map(converter: *DataConverter, channel_map: *Channel, channel_map_cap: usize) Result;
+    extern fn ma_data_converter_get_input_channel_map(converter: *DataConverter, channel_map: ?[*]Channel, channel_map_cap: usize) Result;
 
-    pub fn getOutputChannelMap(converter: *DataConverter, channel_map: *Channel, channel_map_cap: usize) Error!void {
-        try maybeError(ma_data_converter_get_output_channel_map(converter, channel_map, channel_map_cap));
+    pub fn getOutputChannelMap(converter: *DataConverter, channel_map: ?[]Channel, channel_map_cap: usize) Error!void {
+        try maybeError(ma_data_converter_get_output_channel_map(converter, channel_map.ptr, channel_map_cap));
     }
-    extern fn ma_data_converter_get_output_channel_map(converter: *DataConverter, channel_map: *Channel, channel_map_cap: usize) Result;
+    extern fn ma_data_converter_get_output_channel_map(converter: *DataConverter, channel_map: ?[*]Channel, channel_map_cap: usize) Result;
 
     pub fn reset(converter: *DataConverter) Error!void {
         try maybeError(ma_data_converter_reset(converter));
@@ -855,8 +855,8 @@ pub const DataConverter = opaque {
         channels_out: u32,
         sample_rate_in: u32,
         sample_rate_out: u32,
-        channel_map_in: *Channel,
-        channel_map_out: *Channel,
+        channel_map_in: ?[*]Channel,
+        channel_map_out: ?[*]Channel,
         dither_mode: DitherMode,
         channel_mix_mode: ChannelMixMode,
         calculate_LFE_from_spatial_channels: u32,
@@ -872,6 +872,13 @@ pub const DataConverter = opaque {
 //
 //--------------------------------------------------------------------------------------------------
 pub const Decoder = opaque {
+    pub fn asDataSource(handle: *const Decoder) *const DataSource {
+        return @as(*const DataSource, @ptrCast(handle));
+    }
+    pub fn asDataSourceMut(handle: *Decoder) *DataSource {
+        return @as(*DataSource, @ptrCast(handle));
+    }
+
     pub const destroy = zaudioDecoderDestroy;
     extern fn zaudioDecoderDestroy(handle: *Decoder) void;
 
@@ -916,10 +923,10 @@ pub const Decoder = opaque {
     }
     extern fn ma_decoder_seek_to_pcm_frame(decoder: *Decoder, frame_index: u64) Result;
 
-    pub fn getDataFormat(decoder: *Decoder, format: *Format, channels: *u32, sample_rate: *u32, channel_map: [*]Channel, channel_map_cap: usize) Error!void {
-        try maybeError(ma_decoder_get_data_format(decoder, format, channels, sample_rate, channel_map, channel_map_cap));
+    pub fn getDataFormat(decoder: *Decoder, format: *Format, channels: *u32, sample_rate: *u32, channel_map: ?[]Channel, channel_map_cap: usize) Error!void {
+        try maybeError(ma_decoder_get_data_format(decoder, format, channels, sample_rate, channel_map.ptr, channel_map_cap));
     }
-    extern fn ma_decoder_get_data_format(decoder: *Decoder, format: *Format, channels: *u32, sample_rate: *u32, channel_map: [*]Channel, channel_map_cap: usize) Result;
+    extern fn ma_decoder_get_data_format(decoder: *Decoder, format: *Format, channels: *u32, sample_rate: *u32, channel_map: ?[*]Channel, channel_map_cap: usize) Result;
 
     pub fn getCursorInPCMFrames(decoder: *Decoder) Error!u64 {
         var cursor: u64 = undefined;
@@ -952,7 +959,7 @@ pub const Decoder = opaque {
             config: *const BackendConfig,
             allocation_callbacks: AllocationCallbacks,
             backend: **DataSource,
-        ) callconv(.C) Result,
+        ) callconv(.c) Result,
 
         onInitFile: ?*const fn (
             user_data: *anyopaque,
@@ -960,7 +967,7 @@ pub const Decoder = opaque {
             config: BackendConfig,
             allocation_callbacks: AllocationCallbacks,
             backend: **DataSource,
-        ) callconv(.C) Result,
+        ) callconv(.c) Result,
 
         onInitMemory: ?*const fn (
             user_data: *anyopaque,
@@ -969,20 +976,20 @@ pub const Decoder = opaque {
             config: BackendConfig,
             allocation_callbacks: AllocationCallbacks,
             backend: **DataSource,
-        ) callconv(.C) Result,
+        ) callconv(.c) Result,
 
         onUninit: ?*const fn (
             user_data: *anyopaque,
             backend: *DataSource,
             allocation_callbacks: AllocationCallbacks,
-        ) callconv(.C) void,
+        ) callconv(.c) void,
     };
 
     pub const Config = extern struct {
         format: Format,
         channels: u32,
         sample_rate: u32,
-        channel_map: *Channel,
+        channel_map: ?[*]Channel,
         channel_mix_mode: ChannelMixMode,
         dither_mode: DitherMode,
         resampling: Resampler.Config,
@@ -991,7 +998,7 @@ pub const Decoder = opaque {
         seek_point_count: u32,
         custom_backend_vtable: ?*?*VTable,
         custom_backend_count: u32,
-        custom_backend_user_data: *anyopaque,
+        custom_backend_user_data: ?*anyopaque,
 
         pub fn initDefault() Config {
             var config: Config = undefined;
@@ -1014,7 +1021,7 @@ pub const Decoder = opaque {
     };
 };
 
-pub const decoderReadProc = fn (decoder: *Decoder, buffer_out: *anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.C) Result;
+pub const decoderReadProc = fn (decoder: *Decoder, buffer_out: *anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.c) Result;
 pub const decoderSeekProc = fn (decoder: *Decoder, byte_offset: i64, origin: Vfs.SeekOrigin) Result;
 pub const decoderTellProc = fn (decoder: *Decoder, cursor: *i64) Result;
 
@@ -1066,13 +1073,13 @@ pub const Node = opaque {
             frame_count_in: ?*u32,
             frames_out: *[*]f32,
             frame_count_out: *u32,
-        ) callconv(.C) void,
+        ) callconv(.c) void,
 
         onGetRequiredInputFrameCount: ?*const fn (
             node: *Node,
             output_frame_count: u32,
             input_frame_count: *u32,
-        ) callconv(.C) Result,
+        ) callconv(.c) Result,
 
         input_bus_count: u8,
         output_bus_count: u8,
@@ -2024,13 +2031,13 @@ pub const Device = opaque {
         output: ?*anyopaque,
         input: ?*const anyopaque,
         frame_count: u32,
-    ) callconv(.C) void;
+    ) callconv(.c) void;
 
     pub const NotificationProc = *const fn (
         *const anyopaque, // TODO: Should be `*const ma_device_notification`.
-    ) callconv(.C) void;
+    ) callconv(.c) void;
 
-    pub const StopProc = *const fn (device: *Device) callconv(.C) void;
+    pub const StopProc = *const fn (device: *Device) callconv(.c) void;
 
     pub const Id = extern union {
         wasapi: [64]i32,
@@ -2097,7 +2104,7 @@ pub const Engine = opaque {
         user_data: ?*anyopaque,
         frames_out: [*]f32,
         frame_count: u64,
-    ) callconv(.C) void;
+    ) callconv(.c) void;
 
     pub fn create(config: ?Config) Error!*Engine {
         var handle: ?*Engine = null;
@@ -2726,7 +2733,7 @@ pub const Sound = opaque {
     pub const EndProc = *const fn (
         user_data: ?*anyopaque,
         sound: *Sound,
-    ) callconv(.C) void;
+    ) callconv(.c) void;
 };
 //--------------------------------------------------------------------------------------------------
 //
@@ -3013,15 +3020,15 @@ var mem_allocations: ?std.AutoHashMap(usize, usize) = null;
 var mem_mutex: std.Thread.Mutex = .{};
 const mem_alignment = 16;
 
-extern var zaudioMallocPtr: ?*const fn (size: usize, _: ?*anyopaque) callconv(.C) ?*anyopaque;
+extern var zaudioMallocPtr: ?*const fn (size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque;
 
-fn zaudioMalloc(size: usize, _: ?*anyopaque) callconv(.C) ?*anyopaque {
+fn zaudioMalloc(size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque {
     mem_mutex.lock();
     defer mem_mutex.unlock();
 
     const mem = mem_allocator.?.alignedAlloc(
         u8,
-        mem_alignment,
+        .fromByteUnits(mem_alignment),
         size,
     ) catch @panic("zaudio: out of memory");
 
@@ -3030,9 +3037,9 @@ fn zaudioMalloc(size: usize, _: ?*anyopaque) callconv(.C) ?*anyopaque {
     return mem.ptr;
 }
 
-extern var zaudioReallocPtr: ?*const fn (ptr: ?*anyopaque, size: usize, _: ?*anyopaque) callconv(.C) ?*anyopaque;
+extern var zaudioReallocPtr: ?*const fn (ptr: ?*anyopaque, size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque;
 
-fn zaudioRealloc(ptr: ?*anyopaque, size: usize, _: ?*anyopaque) callconv(.C) ?*anyopaque {
+fn zaudioRealloc(ptr: ?*anyopaque, size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque {
     mem_mutex.lock();
     defer mem_mutex.unlock();
 
@@ -3054,9 +3061,9 @@ fn zaudioRealloc(ptr: ?*anyopaque, size: usize, _: ?*anyopaque) callconv(.C) ?*a
     return new_mem.ptr;
 }
 
-extern var zaudioFreePtr: ?*const fn (maybe_ptr: ?*anyopaque, _: ?*anyopaque) callconv(.C) void;
+extern var zaudioFreePtr: ?*const fn (maybe_ptr: ?*anyopaque, _: ?*anyopaque) callconv(.c) void;
 
-fn zaudioFree(maybe_ptr: ?*anyopaque, _: ?*anyopaque) callconv(.C) void {
+fn zaudioFree(maybe_ptr: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
     if (maybe_ptr) |ptr| {
         mem_mutex.lock();
         defer mem_mutex.unlock();
@@ -3266,7 +3273,7 @@ test "zaudio.audio_buffer" {
     defer deinit();
 
     var samples = try std.ArrayList(f32).initCapacity(std.testing.allocator, 1000);
-    defer samples.deinit();
+    defer samples.deinit(std.testing.allocator);
 
     var prng = std.Random.DefaultPrng.init(0);
     const rand = prng.random();
@@ -3295,7 +3302,7 @@ test "zaudio.audio_buffer" {
     sound.setLooping(true);
     try sound.start();
 
-    std.time.sleep(1e8);
+    std.Thread.sleep(1e8);
 }
 
 test {
