@@ -824,13 +824,24 @@ pub const DataConverter = opaque {
     }
     extern fn ma_data_converter_get_expected_output_frame_count(converter: *DataConverter, input_frame_count: u64, output_frame_count: *u64) Result;
 
-    pub fn getInputChannelMap(converter: *DataConverter, channel_map: ?[]Channel, channel_map_cap: usize) Error!void {
-        try maybeError(ma_data_converter_get_input_channel_map(converter, channel_map.ptr, channel_map_cap));
+    pub fn getInputChannelMap(converter: *DataConverter, channel_map: ?[]Channel) Error!void {
+        try maybeError(ma_data_converter_get_input_channel_map(
+            converter,
+            if (channel_map) |chm| chm.ptr else null,
+            if (channel_map) |chm| chm.len else 0,
+        ));
     }
     extern fn ma_data_converter_get_input_channel_map(converter: *DataConverter, channel_map: ?[*]Channel, channel_map_cap: usize) Result;
 
-    pub fn getOutputChannelMap(converter: *DataConverter, channel_map: ?[]Channel, channel_map_cap: usize) Error!void {
-        try maybeError(ma_data_converter_get_output_channel_map(converter, channel_map.ptr, channel_map_cap));
+    pub fn getOutputChannelMap(
+        converter: *DataConverter,
+        channel_map: ?[]Channel,
+    ) Error!void {
+        try maybeError(ma_data_converter_get_output_channel_map(
+            converter,
+            if (channel_map) |chm| chm.ptr else null,
+            if (channel_map) |chm| chm.len else 0,
+        ));
     }
     extern fn ma_data_converter_get_output_channel_map(converter: *DataConverter, channel_map: ?[*]Channel, channel_map_cap: usize) Result;
 
@@ -923,10 +934,23 @@ pub const Decoder = opaque {
     }
     extern fn ma_decoder_seek_to_pcm_frame(decoder: *Decoder, frame_index: u64) Result;
 
-    pub fn getDataFormat(decoder: *Decoder, format: *Format, channels: *u32, sample_rate: *u32, channel_map: ?[]Channel, channel_map_cap: usize) Error!void {
-        try maybeError(ma_decoder_get_data_format(decoder, format, channels, sample_rate, channel_map.ptr, channel_map_cap));
+    pub fn getDataFormat(
+        decoder: *const Decoder,
+        format: ?*Format,
+        channels: ?*u32,
+        sample_rate: ?*u32,
+        channel_map: ?[]Channel,
+    ) Error!void {
+        try maybeError(ma_decoder_get_data_format(
+            decoder,
+            format,
+            channels,
+            sample_rate,
+            if (channel_map) |chm| chm.ptr else null,
+            if (channel_map) |chm| chm.len else 0,
+        ));
     }
-    extern fn ma_decoder_get_data_format(decoder: *Decoder, format: *Format, channels: *u32, sample_rate: *u32, channel_map: ?[*]Channel, channel_map_cap: usize) Result;
+    extern fn ma_decoder_get_data_format(decoder: *const Decoder, format: ?*Format, channels: ?*u32, sample_rate: ?*u32, channel_map: ?[*]Channel, channel_map_cap: usize) Result;
 
     pub fn getCursorInPCMFrames(decoder: *Decoder) Error!u64 {
         var cursor: u64 = undefined;
