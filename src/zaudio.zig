@@ -874,6 +874,43 @@ pub const DataConverter = opaque {
         channel_weighs_io_ptr: [*][*]f32, // [in][out]. Only used when mixingMode is set to ma_channel_mix_mode_custom_weights.
         allow_dynamic_sample_rate: u32,
         resampling: Resampler.Config,
+
+        pub fn initDefault() Config {
+            var config: Config = undefined;
+            zaudioDataConverterConfigInitDefault(&config);
+            return config;
+        }
+        extern fn zaudioDataConverterConfigInitDefault(out_config: *Config) void;
+
+        pub fn init(
+            format_in: Format,
+            format_out: Format,
+            channels_in: u32,
+            channels_out: u32,
+            sample_rate_in: u32,
+            sample_rate_out: u32,
+        ) Config {
+            var config: Config = undefined;
+            zaudioDataConverterConfigInit(
+                format_in,
+                format_out,
+                channels_in,
+                channels_out,
+                sample_rate_in,
+                sample_rate_out,
+                &config,
+            );
+            return config;
+        }
+        extern fn zaudioDataConverterConfigInit(
+            format_in: Format,
+            format_out: Format,
+            channels_in: u32,
+            channels_out: u32,
+            sample_rate_in: u32,
+            sample_rate_out: u32,
+            out_config: *Config,
+        ) void;
     };
 };
 

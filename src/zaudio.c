@@ -689,6 +689,11 @@ void zaudioDataConverterConfigInit(
     *out_config = ma_data_converter_config_init(formatIn, formatOut, channelsIn, channelsOut, sampleRateIn, sampleRateOut);
 }
 
+void zaudioDataConverterConfigInitDefault(ma_data_converter_config* out_config){
+    assert(out_config != NULL);
+    *out_config = ma_data_converter_config_init_default();
+}
+
 // ma_data_converter
 ma_result zaudioDataConverterCreate(
     ma_data_converter_config* config,
