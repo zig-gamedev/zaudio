@@ -33,6 +33,8 @@ Provided structs:
   - [x] `HishelfNode // High Shelf Filter`
   - [x] `DelayNode`
   - [x] custom nodes
+- [x] `Decoder` (missing methods)
+- [x] `DataConverter` 
 
 ## Getting started
 
