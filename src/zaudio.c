@@ -718,7 +718,7 @@ void zaudioDataConverterDestroy(
 }
 
 //--------------------------------------------------------------------------------------------------
-// ma_decoder zaudioDataConverterConfigInit
+// ma_decoder zaudioDecoderConfigInit
 void zaudioDecoderConfigInit(
     ma_format outputFormat, 
     ma_uint32 outputChannels, 
@@ -800,7 +800,7 @@ ma_result zaudioDecoderCreateFromFile(
     return res;      
 }
 
-ma_result zaudioDecoderDestroy(
+void zaudioDecoderDestroy(
     ma_decoder* handle
 ){
     assert(handle != NULL);

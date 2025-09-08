@@ -937,7 +937,7 @@ pub const Decoder = opaque {
         try maybeError(zaudioDecoderCreate(decoder_on_read, decoder_on_seek, user_data, &config, &handle));
         return handle.?;
     }
-    extern fn zaudioDecoderCreate(on_read: decoderReadProc, on_seek: decoderSeekProc, user_data: *anyopaque, config: *const Config, out_handle: *?*?Decoder) Result;
+    extern fn zaudioDecoderCreate(on_read: decoderReadProc, on_seek: decoderSeekProc, user_data: *anyopaque, config: *const Config, out_handle: ?*?*Decoder) Result;
 
     pub fn createFromMemory(data: ?*const anyopaque, data_size: usize, config: Config) Error!*Decoder {
         var handle: ?*Decoder = null;
@@ -1083,8 +1083,8 @@ pub const Decoder = opaque {
 };
 
 pub const decoderReadProc = fn (decoder: *Decoder, buffer_out: *anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.c) Result;
-pub const decoderSeekProc = fn (decoder: *Decoder, byte_offset: i64, origin: Vfs.SeekOrigin) Result;
-pub const decoderTellProc = fn (decoder: *Decoder, cursor: *i64) Result;
+pub const decoderSeekProc = fn (decoder: *Decoder, byte_offset: i64, origin: Vfs.SeekOrigin) callconv(.c) Result;
+pub const decoderTellProc = fn (decoder: *Decoder, cursor: *i64) callconv(.c) Result;
 
 //--------------------------------------------------------------------------------------------------
 //
