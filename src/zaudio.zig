@@ -463,8 +463,6 @@ pub const Vfs = extern struct {
     on_info: ?*const fn (self: *Vfs, handle: FileHandle, info: *FileInfo) callconv(.c) Result,
 };
 
-// these functions were originally located under vfs, but they seems to have no correlation to the type,
-// while decoder require such type in order to make it work, so I will temporary locate these functions in here:
 pub const readProc = *const fn (user_data: ?*anyopaque, buffer_out: ?*anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.c) Result;
 pub const seekProc = *const fn (user_data: ?*anyopaque, offset: i64, origin: Vfs.SeekOrigin) callconv(.c) Result;
 pub const tellProc = *const fn (user_data: ?*anyopaque, cursor: ?*i64) callconv(.c) Result;
@@ -930,8 +928,6 @@ pub const Decoder = opaque {
     pub const destroy = zaudioDecoderDestroy;
     extern fn zaudioDecoderDestroy(handle: *Decoder) void;
 
-    // here are the init functions, but after observed other examples
-    // I will skip the _w variant until there is a solution to handle wchar_t
     pub fn create(decoder_on_read: decoderReadProc, decoder_on_seek: decoderSeekProc, user_data: *anyopaque, config: Config) Error!*Decoder {
         var handle: ?*Decoder = null;
         try maybeError(zaudioDecoderCreate(decoder_on_read, decoder_on_seek, user_data, &config, &handle));
@@ -960,7 +956,6 @@ pub const Decoder = opaque {
     }
     extern fn zaudioDecoderCreateFromFile(file_path: [*:0]const u8, config: *const Config, out_handle: ?*?*Decoder) Result;
 
-    // The remaing related functions for manipulate the samples:
     pub fn readPCMFrames(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: ?*u64) Error!void {
         try maybeError(ma_decoder_read_pcm_frames(decoder, frame_out, frames_count, frames_read));
     }
