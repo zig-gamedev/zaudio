@@ -267,6 +267,12 @@ pub const PanMode = enum(u32) {
     pan,
 };
 
+pub const DitherMode = enum(u32) {
+    none,
+    rectangle,
+    triangle,
+};
+
 pub const AttenuationModel = enum(u32) {
     none,
     inverse,
@@ -286,6 +292,14 @@ pub const Format = enum(u32) {
     signed24,
     signed32,
     float32,
+};
+
+pub const EncodingFormat = enum(u32) {
+    unknown,
+    wav,
+    flac,
+    mp3,
+    vorbis,
 };
 
 pub const PerformanceProfile = enum(u32) {
@@ -448,6 +462,10 @@ pub const Vfs = extern struct {
     on_tell: ?*const fn (self: *Vfs, handle: FileHandle, offset: *i64) callconv(.c) Result,
     on_info: ?*const fn (self: *Vfs, handle: FileHandle, info: *FileInfo) callconv(.c) Result,
 };
+
+pub const readProc = *const fn (user_data: ?*anyopaque, buffer_out: ?*anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.c) Result;
+pub const seekProc = *const fn (user_data: ?*anyopaque, offset: i64, origin: Vfs.SeekOrigin) callconv(.c) Result;
+pub const tellProc = *const fn (user_data: ?*anyopaque, cursor: ?*i64) callconv(.c) Result;
 
 pub const Context = opaque {
     // TODO: Add methods.
@@ -736,6 +754,354 @@ pub const AudioBuffer = opaque {
         return @as(*DataSource, @ptrCast(audio_buffer));
     }
 };
+
+//--------------------------------------------------------------------------------------------------
+//
+// Data Converter
+//
+//--------------------------------------------------------------------------------------------------
+pub const DataConverter = opaque {
+    pub const destroy = zaudioDataConverterDestroy;
+    extern fn zaudioDataConverterDestroy(handle: *DataConverter) void;
+
+    pub fn create(config: Config) Error!*DataConverter {
+        var handle: ?*DataConverter = null;
+        try maybeError(zaudioDataConverterCreate(&config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioDataConverterCreate(config: *const Config, handle: ?*?*DataConverter) Result;
+
+    pub fn processPcmFrames(
+        converter: *DataConverter,
+        frames_in: *anyopaque,
+        frame_count_in: *u64,
+        frame_out: *anyopaque,
+        frame_count_out: *u64,
+    ) Error!void {
+        try maybeError(ma_data_converter_process_pcm_frames(
+            converter,
+            frames_in,
+            frame_count_in,
+            frame_out,
+            frame_count_out,
+        ));
+    }
+    extern fn ma_data_converter_process_pcm_frames(converter: *DataConverter, frames_in: *anyopaque, frame_count_in: *u64, frame_out: *anyopaque, frame_count_out: *u64) Result;
+
+    pub fn setRate(converter: *DataConverter, sample_rate_in: u32, sample_rate_out: u32) Error!void {
+        try maybeError(ma_data_converter_set_rate(converter, sample_rate_in, sample_rate_out));
+    }
+    extern fn ma_data_converter_set_rate(converter: *DataConverter, sample_rate_in: u32, sample_rate_out: u32) Result;
+
+    pub fn setRateRatio(converter: *DataConverter, ratio_in_out: f32) Error!void {
+        try maybeError(ma_data_converter_set_rate_ratio(converter, ratio_in_out));
+    }
+    extern fn ma_data_converter_set_rate_ratio(converter: *DataConverter, ratioInOut: f32) Result;
+
+    pub fn getInputLatency(converter: *DataConverter) u64 {
+        return ma_data_converter_get_input_latency(converter);
+    }
+    extern fn ma_data_converter_get_input_latency(converter: *DataConverter) u64;
+
+    pub fn getOutPutLatency(converter: *DataConverter) u64 {
+        return ma_data_converter_get_output_latency(converter);
+    }
+    extern fn ma_data_converter_get_output_latency(converter: *DataConverter) u64;
+
+    pub fn getRequiredInputFrameCount(converter: *DataConverter, output_frame_count: u64) Error!u64 {
+        var input_frame_count: u64 = undefined;
+        try maybeError(ma_data_converter_get_required_input_frame_count(converter, output_frame_count, &input_frame_count));
+        return input_frame_count;
+    }
+    extern fn ma_data_converter_get_required_input_frame_count(converter: *DataConverter, output_frame_count: u64, input_frame_count: *u64) Result;
+
+    pub fn getExpectedOutputFrameCount(converter: *DataConverter, input_frame_count: u64) Error!u64 {
+        var output_frame_count: u64 = undefined;
+        try maybeError(ma_data_converter_get_expected_output_frame_count(converter, input_frame_count, &output_frame_count));
+        return output_frame_count;
+    }
+    extern fn ma_data_converter_get_expected_output_frame_count(converter: *DataConverter, input_frame_count: u64, output_frame_count: *u64) Result;
+
+    pub fn getInputChannelMap(converter: *DataConverter, channel_map: ?[]Channel) Error!void {
+        try maybeError(ma_data_converter_get_input_channel_map(
+            converter,
+            if (channel_map) |chm| chm.ptr else null,
+            if (channel_map) |chm| chm.len else 0,
+        ));
+    }
+    extern fn ma_data_converter_get_input_channel_map(converter: *DataConverter, channel_map: ?[*]Channel, channel_map_cap: usize) Result;
+
+    pub fn getOutputChannelMap(
+        converter: *DataConverter,
+        channel_map: ?[]Channel,
+    ) Error!void {
+        try maybeError(ma_data_converter_get_output_channel_map(
+            converter,
+            if (channel_map) |chm| chm.ptr else null,
+            if (channel_map) |chm| chm.len else 0,
+        ));
+    }
+    extern fn ma_data_converter_get_output_channel_map(converter: *DataConverter, channel_map: ?[*]Channel, channel_map_cap: usize) Result;
+
+    pub fn reset(converter: *DataConverter) Error!void {
+        try maybeError(ma_data_converter_reset(converter));
+    }
+    extern fn ma_data_converter_reset(converter: *DataConverter) Result;
+
+    pub const ExecutionPath = enum(u32) {
+        passthrough,
+        format_only,
+        channels_only,
+        resample_only,
+        resample_first,
+        channels_first,
+    };
+
+    pub const Config = extern struct {
+        format_in: Format,
+        format_out: Format,
+        channels_in: u32,
+        channels_out: u32,
+        sample_rate_in: u32,
+        sample_rate_out: u32,
+        channel_map_in: ?[*]Channel,
+        channel_map_out: ?[*]Channel,
+        dither_mode: DitherMode,
+        channel_mix_mode: ChannelMixMode,
+        calculate_LFE_from_spatial_channels: u32,
+        channel_weighs_io_ptr: [*][*]f32, // [in][out]. Only used when mixingMode is set to ma_channel_mix_mode_custom_weights.
+        allow_dynamic_sample_rate: u32,
+        resampling: Resampler.Config,
+
+        pub fn initDefault() Config {
+            var config: Config = undefined;
+            zaudioDataConverterConfigInitDefault(&config);
+            return config;
+        }
+        extern fn zaudioDataConverterConfigInitDefault(out_config: *Config) void;
+
+        pub fn init(
+            format_in: Format,
+            format_out: Format,
+            channels_in: u32,
+            channels_out: u32,
+            sample_rate_in: u32,
+            sample_rate_out: u32,
+        ) Config {
+            var config: Config = undefined;
+            zaudioDataConverterConfigInit(
+                format_in,
+                format_out,
+                channels_in,
+                channels_out,
+                sample_rate_in,
+                sample_rate_out,
+                &config,
+            );
+            return config;
+        }
+        extern fn zaudioDataConverterConfigInit(
+            format_in: Format,
+            format_out: Format,
+            channels_in: u32,
+            channels_out: u32,
+            sample_rate_in: u32,
+            sample_rate_out: u32,
+            out_config: *Config,
+        ) void;
+    };
+};
+
+//--------------------------------------------------------------------------------------------------
+//
+// Decoder
+//
+//--------------------------------------------------------------------------------------------------
+pub const Decoder = opaque {
+    pub fn asDataSource(handle: *const Decoder) *const DataSource {
+        return @as(*const DataSource, @ptrCast(handle));
+    }
+    pub fn asDataSourceMut(handle: *Decoder) *DataSource {
+        return @as(*DataSource, @ptrCast(handle));
+    }
+
+    pub const destroy = zaudioDecoderDestroy;
+    extern fn zaudioDecoderDestroy(handle: *Decoder) void;
+
+    pub fn create(decoder_on_read: decoderReadProc, decoder_on_seek: decoderSeekProc, user_data: *anyopaque, config: Config) Error!*Decoder {
+        var handle: ?*Decoder = null;
+        try maybeError(zaudioDecoderCreate(decoder_on_read, decoder_on_seek, user_data, &config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioDecoderCreate(on_read: decoderReadProc, on_seek: decoderSeekProc, user_data: *anyopaque, config: *const Config, out_handle: ?*?*Decoder) Result;
+
+    pub fn createFromMemory(data: ?*const anyopaque, data_size: usize, config: Config) Error!*Decoder {
+        var handle: ?*Decoder = null;
+        try maybeError(zaudioDecoderCreateFromMemory(data, data_size, &config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioDecoderCreateFromMemory(data: ?*const anyopaque, data_size: usize, config: *const Config, out_handle: ?*?*Decoder) Result;
+
+    pub fn createFromVfs(vfs: *Vfs, file_path: [:0]const u8, config: Config) Error!*Decoder {
+        var handle: ?*Decoder = null;
+        try maybeError(zaudioDecoderCreateFromVfs(vfs, file_path.ptr, &config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioDecoderCreateFromVfs(vfs: *Vfs, file_path: [*:0]const u8, config: *const Config, out_handle: ?*?*Decoder) Result;
+
+    pub fn createFromFile(file_path: [:0]const u8, config: Config) Error!*Decoder {
+        var handle: ?*Decoder = null;
+        try maybeError(zaudioDecoderCreateFromFile(file_path.ptr, &config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioDecoderCreateFromFile(file_path: [*:0]const u8, config: *const Config, out_handle: ?*?*Decoder) Result;
+
+    pub fn readPCMFrames(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: ?*u64) Error!void {
+        try maybeError(ma_decoder_read_pcm_frames(decoder, frame_out, frames_count, frames_read));
+    }
+    extern fn ma_decoder_read_pcm_frames(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: ?*u64) Result;
+
+    pub fn seekToPCMFrames(decoder: *Decoder, frame_index: u64) Error!void {
+        try maybeError(ma_decoder_seek_to_pcm_frame(decoder, frame_index));
+    }
+    extern fn ma_decoder_seek_to_pcm_frame(decoder: *Decoder, frame_index: u64) Result;
+
+    pub fn getDataFormat(
+        decoder: *const Decoder,
+        format: ?*Format,
+        channels: ?*u32,
+        sample_rate: ?*u32,
+        channel_map: ?[]Channel,
+    ) Error!void {
+        try maybeError(ma_decoder_get_data_format(
+            decoder,
+            format,
+            channels,
+            sample_rate,
+            if (channel_map) |chm| chm.ptr else null,
+            if (channel_map) |chm| chm.len else 0,
+        ));
+    }
+    extern fn ma_decoder_get_data_format(decoder: *const Decoder, format: ?*Format, channels: ?*u32, sample_rate: ?*u32, channel_map: ?[*]Channel, channel_map_cap: usize) Result;
+
+    pub fn getCursorInPCMFrames(decoder: *Decoder) Error!u64 {
+        var cursor: u64 = undefined;
+        try maybeError(ma_decoder_get_cursor_in_pcm_frames(decoder, &cursor));
+        return cursor;
+    }
+    extern fn ma_decoder_get_cursor_in_pcm_frames(decoder: *Decoder, cursor: *u64) Result;
+
+    pub fn getLengthInPCMFrames(decoder: *Decoder) Error!u64 {
+        var length: u64 = undefined;
+        try maybeError(ma_decoder_get_length_in_pcm_frames(decoder, &length));
+        return length;
+    }
+    extern fn ma_decoder_get_length_in_pcm_frames(decoder: *Decoder, length: *u64) Result;
+
+    pub fn getAvailableFrames(decoder: *Decoder) Error!u64 {
+        var available_frames: u64 = undefined;
+        try maybeError(ma_decoder_get_available_frames(decoder, &available_frames));
+        return available_frames;
+    }
+    extern fn ma_decoder_get_available_frames(decoder: *Decoder, available_frames: *u64) Result;
+
+    pub const VTable = extern struct {
+        onInit: ?*const fn (
+            user_data: *anyopaque,
+            on_read: readProc,
+            on_seek: seekProc,
+            on_tell: tellProc,
+            read_seek_tell_user_data: *anyopaque,
+            config: *const BackendConfig,
+            allocation_callbacks: AllocationCallbacks,
+            backend: **DataSource,
+        ) callconv(.c) Result,
+
+        onInitFile: ?*const fn (
+            user_data: *anyopaque,
+            file_path: [*:0]const u8,
+            config: BackendConfig,
+            allocation_callbacks: AllocationCallbacks,
+            backend: **DataSource,
+        ) callconv(.c) Result,
+
+        onInitMemory: ?*const fn (
+            user_data: *anyopaque,
+            data: *const anyopaque,
+            data_size: usize,
+            config: BackendConfig,
+            allocation_callbacks: AllocationCallbacks,
+            backend: **DataSource,
+        ) callconv(.c) Result,
+
+        onUninit: ?*const fn (
+            user_data: *anyopaque,
+            backend: *DataSource,
+            allocation_callbacks: AllocationCallbacks,
+        ) callconv(.c) void,
+    };
+
+    pub const Config = extern struct {
+        format: Format,
+        channels: u32,
+        sample_rate: u32,
+        channel_map: ?[*]Channel,
+        channel_mix_mode: ChannelMixMode,
+        dither_mode: DitherMode,
+        resampling: Resampler.Config,
+        allocation_callbacks: AllocationCallbacks,
+        encoding_format: EncodingFormat,
+        seek_point_count: u32,
+        custom_backend_vtable: ?*?*VTable,
+        custom_backend_count: u32,
+        custom_backend_user_data: ?*anyopaque,
+
+        pub fn initDefault() Config {
+            var config: Config = undefined;
+            zaudioDecoderConfigInitDefault(&config);
+            return config;
+        }
+        extern fn zaudioDecoderConfigInitDefault(out_config: *Config) void;
+
+        pub fn init(output_format: Format, output_channels: u32, output_sample_rate: u32) Config {
+            var config: Config = undefined;
+            zaudioDecoderConfigInit(output_format, output_channels, output_sample_rate, &config);
+            return config;
+        }
+        extern fn zaudioDecoderConfigInit(output_format: Format, output_channels: u32, output_sample_rate: u32, out_config: *Config) void;
+    };
+
+    pub const BackendConfig = extern struct {
+        preferred_format: Format,
+        seek_point_count: u32,
+    };
+};
+
+pub const decoderReadProc = fn (decoder: *Decoder, buffer_out: *anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.c) Result;
+pub const decoderSeekProc = fn (decoder: *Decoder, byte_offset: i64, origin: Vfs.SeekOrigin) callconv(.c) Result;
+pub const decoderTellProc = fn (decoder: *Decoder, cursor: *i64) callconv(.c) Result;
+
+//--------------------------------------------------------------------------------------------------
+//
+// Resampler (Incomplete, but since many of the function requires the type, especially the config,
+//                 we eventually need an opaque function to reduce code repetition)
+//
+//--------------------------------------------------------------------------------------------------
+pub const Resampler = opaque {
+    pub const Config = extern struct {
+        format: Format,
+        channels: u32,
+        sample_rate_in: u32,
+        sample_rate_out: u32,
+        algorithm: ResampleAlgorithm,
+        backend_vtable: ?*anyopaque, // TODO: Should be `*ma_resampling_backend_vtable` (custom resamplers).
+        backend_user_data: ?*anyopaque,
+        linear: extern struct {
+            lpf_order: u32,
+        },
+    };
+};
+
 //--------------------------------------------------------------------------------------------------
 //
 // Node
