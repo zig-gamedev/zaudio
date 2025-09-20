@@ -1083,6 +1083,28 @@ pub const decoderTellProc = fn (decoder: *Decoder, cursor: *i64) callconv(.c) Re
 
 //--------------------------------------------------------------------------------------------------
 //
+// Encoder
+//
+//--------------------------------------------------------------------------------------------------
+
+pub const Encoder = opaque {
+    pub const Config = extern struct {
+        encoding_format: EncodingFormat,
+        format: Format,
+        channels: u32,
+        sample_rate: u32,
+        allocation_callbacks: AllocationCallbacks,
+    };
+};
+
+pub const encoderWriteProc = fn (encoder: *Encoder, buffer_in: *anyopaque, bytes_to_write: usize, bytes_written: *usize) callconv(.c) Result;
+pub const encoderSeekProc = fn (encoder: *Encoder, offset: i64, origin: Vfs.SeekOrigin) callconv(.c) Result;
+pub const encoderInitProc = fn (encoder: *Encoder) callconv(.c) Result;
+pub const encoderUninitProc = fn (encoder: *Encoder) callconv(.c) void;
+pub const encoderWritePcmFrameProc = fn (encoder: *Encoder, frames_in: *anyopaque, frame_count: u64, frames_written: *u64) callconv(.c) Result;
+
+//--------------------------------------------------------------------------------------------------
+//
 // Resampler (Incomplete, but since many of the function requires the type, especially the config,
 //                 we eventually need an opaque function to reduce code repetition)
 //
