@@ -48,7 +48,6 @@ pub fn build(b: *std.Build) void {
         .file = b.path("libs/miniaudio/miniaudio.c"),
         .flags = &.{
             "-DMA_NO_WEBAUDIO",
-            "-DMA_NO_ENCODING",
             "-DMA_NO_NULL",
             "-DMA_NO_JACK",
             "-DMA_NO_DSOUND",

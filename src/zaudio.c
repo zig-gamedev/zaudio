@@ -810,15 +810,16 @@ void zaudioDecoderDestroy(
 
 //--------------------------------------------------------------------------------------------------
 void zaudioEncoderConfigInit(
-    ma_encoding_format encodingFormat, 
+    ma_encoding_format encoding_format, 
     ma_format format, 
     ma_uint32 channels, 
-    ma_uint32 sampleRate,
+    ma_uint32 sample_rate,
     ma_encoder_config* out_config
 ){
     assert(out_config != NULL);
-    *out_config = ma_encoder_config_init(encodingFormat, format, channels, sampleRate);
+    *out_config = ma_encoder_config_init(encoding_format, format, channels, sample_rate);
 }
+
 
 ma_result zaudioEncoderCreate(
     ma_encoder_write_proc on_write, 
@@ -829,7 +830,7 @@ ma_result zaudioEncoderCreate(
 ){
     assert(user_data != NULL && config != NULL && out_handle != NULL);
     *out_handle = s_mem.onMalloc(sizeof(ma_encoder), s_mem.pUserData);
-    ma_result res = ma_encoder_init(on_write, on_seek, user_data,config, *out_handle);
+    ma_result res = ma_encoder_init(on_write, on_seek, user_data, config, *out_handle);
     if (res != MA_SUCCESS){
         s_mem.onFree(*out_handle, s_mem.pUserData);
         *out_handle = NULL;
@@ -843,7 +844,7 @@ ma_result zaudioEncoderCreateFromVfs(
     const ma_encoder_config* config, 
     ma_encoder** out_handle
 ){
-    assert(vfs != NULL && file_path != NULL && config != NULL, out_handle != NULL);
+    assert(vfs != NULL && file_path != NULL && config != NULL && out_handle != NULL);
     *out_handle = s_mem.onMalloc(sizeof(ma_encoder), s_mem.pUserData);
     ma_result res = ma_encoder_init_vfs(vfs, file_path, config, *out_handle);
     if(res != MA_SUCCESS){
@@ -856,9 +857,9 @@ ma_result zaudioEncoderCreateFromVfs(
 ma_result zaudioEncoderCreateFromFile(
     const char* file_path, 
     const ma_encoder_config* config, 
-    ma_encoder* out_handle
+    ma_encoder** out_handle
 ){
-    assert(file_path != NULL, config != NULL, out_handle != NULL);
+    assert(file_path != NULL && config != NULL && out_handle != NULL);
     *out_handle = s_mem.onMalloc(sizeof(ma_encoder), s_mem.pUserData);
     ma_result res = ma_encoder_init_file(file_path, config, out_handle);
     if (res != MA_SUCCESS){
@@ -874,6 +875,11 @@ void zaudioEncoderDestroy(
     assert(handle != NULL);
     ma_encoder_uninit(handle);
     s_mem.onFree(handle, s_mem.pUserData);
+}
+
+void* zaudioEncoderGetUserData(ma_encoder* handle) {
+    assert(handle != NULL);
+    return handle->pUserData;
 }
 
 //--------------------------------------------------------------------------------------------------
