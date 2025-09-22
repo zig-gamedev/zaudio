@@ -960,8 +960,10 @@ pub const Decoder = opaque {
     }
     extern fn zaudioDecoderCreateFromFile(file_path: [*:0]const u8, config: *const Config, out_handle: ?*?*Decoder) Result;
 
-    pub fn readPCMFrames(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: ?*u64) Error!void {
-        try maybeError(ma_decoder_read_pcm_frames(decoder, frame_out, frames_count, frames_read));
+    pub fn readPCMFrames(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64) Error!u64 {
+        var frames_read: u64 = undefined;
+        try maybeError(ma_decoder_read_pcm_frames(decoder, frame_out, frames_count, &frames_read));
+        return frames_read;
     }
     extern fn ma_decoder_read_pcm_frames(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: ?*u64) Result;
 
@@ -3549,14 +3551,12 @@ test "zaudio.encoder_decoder_roundtrip" {
 
     // this proves .wav has successfully generated
     const result_list = encoder_result.buffer;
-
     try expect(std.mem.eql(u8, "RIFF", result_list[0..4]));
     try expect(std.mem.eql(u8, "WAVEfmt ", result_list[8..16]));
-    // The first 8 bytes are not include in the file_size of the .wav format, so we need to add it back before comparing the slice length
+    // The first 8 bytes are not include in the file_size of the .wav format, so we need to +8 for comparison
     const file_size: usize = @as(usize, @intCast(result_list[4])) + (@as(usize, @intCast(result_list[5])) * 256) + 8;
     try expect(file_size == result_list.len);
 
-    // Decoder Tests
     const decoder_cfg = Decoder.Config.init(.unsigned8, 1, 44100);
     try expect(decoder_cfg.format == .unsigned8);
     try expect(decoder_cfg.channels == 1);
@@ -3564,7 +3564,34 @@ test "zaudio.encoder_decoder_roundtrip" {
 
     const decoder = try Decoder.createFromMemory(@ptrCast(result_list.ptr), result_list.len, decoder_cfg);
     defer decoder.destroy();
-    std.debug.print("available frames: {d}\n", .{try decoder.getAvailableFrames()});
+    try expect(try decoder.getAvailableFrames() == 256);
+
+    var format: Format = .unknown;
+    var num_channels: u32 = 0;
+    var sample_rate: u32 = 0;
+    try decoder.getDataFormat(&format, &num_channels, &sample_rate, null);
+    try expect(format == .unsigned8);
+    try expect(num_channels == 1);
+    try expect(sample_rate == 44100);
+
+    var ctrl_upward_saw_distination = std.mem.zeroes([256]u8);
+    const frames_read = try decoder.readPCMFrames(@ptrCast(&ctrl_upward_saw_distination), ctrl_upward_saw_distination.len);
+    try expect(frames_read == ctrl_upward_saw_distination.len);
+
+    // after encoding and decoding, the decoded result should be identical to the original, generated upward saw sample.
+    for (ctrl_upward_saw_source, ctrl_upward_saw_distination) |src, dst| {
+        try expect(src == dst);
+    }
+
+    // this should change the cursor into the middle of the sample
+    try decoder.seekToPCMFrames(128);
+    var ctrl_upward_saw_distination_half = std.mem.zeroes([128]u8);
+    const frames_read_half = try decoder.readPCMFrames(@ptrCast(&ctrl_upward_saw_distination_half), ctrl_upward_saw_distination_half.len);
+    try expect(frames_read_half == frames_read / 2);
+
+    for (ctrl_upward_saw_distination_half, 0..) |half, i| {
+        try expect(half == ctrl_upward_saw_source[128 + i]);
+    }
 }
 
 test {
