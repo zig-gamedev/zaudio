@@ -808,6 +808,11 @@ void zaudioDecoderDestroy(
     s_mem.onFree(handle, s_mem.pUserData);
 }
 
+void* zaudioDecoderGetUserData(ma_decoder* handle) {
+    assert(handle != NULL);
+    return handle->pUserData;
+}
+
 //--------------------------------------------------------------------------------------------------
 void zaudioEncoderConfigInit(
     ma_encoding_format encoding_format, 

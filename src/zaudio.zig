@@ -1047,6 +1047,9 @@ pub const Decoder = opaque {
         ) callconv(.c) void,
     };
 
+    pub const getUserData = zaudioDecoderGetUserData;
+    extern fn zaudioDecoderGetUserData(device: *const Encoder) ?*anyopaque;
+
     pub const Config = extern struct {
         format: Format,
         channels: u32,
