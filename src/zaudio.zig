@@ -3482,8 +3482,7 @@ const TestingEncodedStorage = struct {
     const Self = @This();
     data_allocator: std.mem.Allocator,
     buffer: []u8,
-    writer: std.fs.File.Writer = undefined,
-    interface: std.Io.Writer = undefined,
+    cursor: usize = 0,
 
     pub fn init(allocator_in: std.mem.Allocator) !Self {
         return Self{
@@ -3496,19 +3495,20 @@ const TestingEncodedStorage = struct {
         self.data_allocator.free(self.buffer);
     }
 
-    pub fn updateInterface(self: *Self, offset: i64) void {
-        self.writer = std.fs.File.stdout().writer(self.buffer);
-        self.interface = self.writer.interface;
-        self.interface.advance(@intCast(offset));
+    pub fn seek(self: *Self, position: usize) void {
+        self.cursor = position;
     }
 
     pub fn writeSlice(self: *Self, input: []u8) !usize {
-        const former_end = self.interface.end;
-        if (former_end + input.len >= self.buffer.len) {
-            self.buffer = try self.data_allocator.realloc(self.buffer, former_end + input.len);
-            self.updateInterface(@intCast(former_end));
+        const former_cursor = self.cursor;
+        if (self.cursor + input.len >= self.buffer.len) {
+            self.buffer = try self.data_allocator.realloc(self.buffer, self.cursor + input.len);
         }
-        return try self.interface.write(input);
+        for (input) |char| {
+            self.buffer[self.cursor] = char;
+            self.cursor += 1;
+        }
+        return self.cursor - former_cursor;
     }
 };
 
@@ -3523,7 +3523,7 @@ fn testing_on_write(encoder: *Encoder, buffer_in: *anyopaque, bytes_to_write: us
 
 fn testing_on_seek(encoder: *Encoder, offset: i64, _: Vfs.SeekOrigin) callconv(.c) Result {
     const result_buffer: *TestingEncodedStorage = @ptrCast(@alignCast(encoder.getUserData()));
-    result_buffer.updateInterface(offset);
+    result_buffer.seek(@intCast(offset));
     return Result.success;
 }
 
