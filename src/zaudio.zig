@@ -3495,35 +3495,26 @@ const TestingEncodedStorage = struct {
         self.data_allocator.free(self.buffer);
     }
 
-    pub fn seek(self: *Self, position: usize) void {
-        self.cursor = position;
-    }
-
     pub fn writeSlice(self: *Self, input: []u8) !usize {
-        const former_cursor = self.cursor;
         if (self.cursor + input.len >= self.buffer.len) {
             self.buffer = try self.data_allocator.realloc(self.buffer, self.cursor + input.len);
         }
-        for (input) |char| {
-            self.buffer[self.cursor] = char;
-            self.cursor += 1;
-        }
-        return self.cursor - former_cursor;
+        @memmove(self.buffer[self.cursor .. self.cursor + input.len], input);
+        self.cursor += input.len;
+        return input.len;
     }
 };
 
 fn testing_on_write(encoder: *Encoder, buffer_in: *anyopaque, bytes_to_write: usize, bytes_written: *usize) callconv(.c) Result {
-    const buffer_in_data: [*]u8 = @ptrCast(@alignCast(buffer_in));
     const result_buffer: *TestingEncodedStorage = @ptrCast(@alignCast(encoder.getUserData()));
-    _ = result_buffer.writeSlice(buffer_in_data[0..bytes_to_write]) catch return Result.out_of_memory;
-    bytes_written.* += bytes_to_write;
-
+    const buffer_in_data: [*]u8 = @ptrCast(@alignCast(buffer_in));
+    bytes_written.* += result_buffer.writeSlice(buffer_in_data[0..bytes_to_write]) catch return Result.out_of_memory;
     return Result.success;
 }
 
 fn testing_on_seek(encoder: *Encoder, offset: i64, _: Vfs.SeekOrigin) callconv(.c) Result {
     const result_buffer: *TestingEncodedStorage = @ptrCast(@alignCast(encoder.getUserData()));
-    result_buffer.seek(@intCast(offset));
+    result_buffer.cursor = @intCast(offset);
     return Result.success;
 }
 
@@ -3581,12 +3572,12 @@ test "zaudio.encoder_decoder_roundtrip" {
     const frames_read = try decoder.readPCMFrames(@ptrCast(&ctrl_upward_saw_distination), ctrl_upward_saw_distination.len);
     try expect(frames_read == ctrl_upward_saw_distination.len);
 
-    // after encoding and decoding, the decoded result should be identical to the original, generated upward saw sample.
+    // after encoding and decoding, the decoded result should be identical to the original saw sample.
     for (ctrl_upward_saw_source, ctrl_upward_saw_distination) |src, dst| {
         try expect(src == dst);
     }
 
-    // this should change the cursor into the middle of the sample
+    // this should change the cursor to the middle of the sample
     try decoder.seekToPCMFrames(128);
     var ctrl_upward_saw_distination_half = std.mem.zeroes([128]u8);
     const frames_read_half = try decoder.readPCMFrames(@ptrCast(&ctrl_upward_saw_distination_half), ctrl_upward_saw_distination_half.len);
