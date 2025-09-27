@@ -771,6 +771,10 @@ pub const DataConverter = opaque {
     }
     extern fn zaudioDataConverterCreate(config: *const Config, handle: ?*?*DataConverter) Result;
 
+    /// Please don't use the .len of the buffer slice since frame count is different from the actual sample buffer size
+    /// which your actual buffer size is equal to frame size multiplied by the number of channel, so you should get the
+    /// frame_count_xxx with using either getRequiredInputFrameCount() or getExpectedOutputFrameCount() as a var,
+    /// or you will get an incomplete or even a corrupted sample
     pub fn processPcmFrames(
         converter: *DataConverter,
         frames_in: *anyopaque,
@@ -956,8 +960,10 @@ pub const Decoder = opaque {
     }
     extern fn zaudioDecoderCreateFromFile(file_path: [*:0]const u8, config: *const Config, out_handle: ?*?*Decoder) Result;
 
-    pub fn readPCMFrames(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: ?*u64) Error!void {
-        try maybeError(ma_decoder_read_pcm_frames(decoder, frame_out, frames_count, frames_read));
+    pub fn readPCMFrames(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64) Error!u64 {
+        var frames_read: u64 = undefined;
+        try maybeError(ma_decoder_read_pcm_frames(decoder, frame_out, frames_count, &frames_read));
+        return frames_read;
     }
     extern fn ma_decoder_read_pcm_frames(decoder: *Decoder, frame_out: *anyopaque, frames_count: u64, frames_read: ?*u64) Result;
 
@@ -1041,6 +1047,9 @@ pub const Decoder = opaque {
         ) callconv(.c) void,
     };
 
+    pub const getUserData = zaudioDecoderGetUserData;
+    extern fn zaudioDecoderGetUserData(device: *const Decoder) ?*anyopaque;
+
     pub const Config = extern struct {
         format: Format,
         channels: u32,
@@ -1080,6 +1089,69 @@ pub const Decoder = opaque {
 pub const decoderReadProc = fn (decoder: *Decoder, buffer_out: *anyopaque, bytes_to_read: usize, bytes_read: *usize) callconv(.c) Result;
 pub const decoderSeekProc = fn (decoder: *Decoder, byte_offset: i64, origin: Vfs.SeekOrigin) callconv(.c) Result;
 pub const decoderTellProc = fn (decoder: *Decoder, cursor: *i64) callconv(.c) Result;
+
+//--------------------------------------------------------------------------------------------------
+//
+// Encoder
+//
+//--------------------------------------------------------------------------------------------------
+
+pub const Encoder = opaque {
+    pub const destroy = zaudioEncoderDestroy;
+    extern fn zaudioEncoderDestroy(handle: *Encoder) void;
+
+    pub fn create(encoder_on_write: encoderWriteProc, encoder_on_seek: encoderSeekProc, user_data: *anyopaque, config: Config) Error!*Encoder {
+        var handle: ?*Encoder = null;
+        try maybeError(zaudioEncoderCreate(encoder_on_write, encoder_on_seek, user_data, &config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioEncoderCreate(on_write: encoderWriteProc, on_seek: encoderSeekProc, user_data: *anyopaque, config: *const Config, out_handle: ?*?*Encoder) Result;
+
+    pub fn createFromVfs(vfs: *Vfs, file_path: []const u8, config: Config) Error!*Encoder {
+        var handle: ?*Encoder = null;
+        try maybeError(zaudioEncoderCreateFromVfs(vfs, file_path.ptr, &config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioEncoderCreateFromVfs(vfs: *Vfs, file_path: [*]const u8, config: *const Config, out_handle: ?*?*Encoder) Result;
+
+    pub fn createFromFile(file_path: []const u8, config: Config) Error!*Encoder {
+        var handle: ?*Encoder = null;
+        try maybeError(zaudioEncoderCreateFromFile(file_path.ptr, &config, &handle));
+        return handle.?;
+    }
+    extern fn zaudioEncoderCreateFromFile(file_path: [*]const u8, config: *const Config, handle: ?*?*Encoder) Result;
+
+    pub fn writePcmFrame(encoder: *Encoder, frames_in: *anyopaque, frames_count: u64) Error!u64 {
+        var frames_written: u64 = undefined;
+        try maybeError(ma_encoder_write_pcm_frames(encoder, frames_in, frames_count, &frames_written));
+        return frames_written;
+    }
+    extern fn ma_encoder_write_pcm_frames(encoder: *Encoder, frames_in: *anyopaque, frame_count: u64, frames_written: *u64) Result;
+
+    pub const getUserData = zaudioEncoderGetUserData;
+    extern fn zaudioEncoderGetUserData(device: *const Encoder) ?*anyopaque;
+
+    pub const Config = extern struct {
+        encoding_format: EncodingFormat,
+        format: Format,
+        channels: u32,
+        sample_rate: u32,
+        allocation_callbacks: AllocationCallbacks,
+
+        pub fn init(encoding_format: EncodingFormat, format: Format, channels: u32, sample_rate: u32) Config {
+            var config: Config = undefined;
+            zaudioEncoderConfigInit(encoding_format, format, channels, sample_rate, &config);
+            return config;
+        }
+        extern fn zaudioEncoderConfigInit(encoding_format: EncodingFormat, format: Format, channel: u32, sample_rate: u32, out_config: *Config) void;
+    };
+};
+
+pub const encoderWriteProc = *const fn (encoder: *Encoder, buffer_in: *anyopaque, bytes_to_write: usize, bytes_written: *usize) callconv(.c) Result;
+pub const encoderSeekProc = *const fn (encoder: *Encoder, offset: i64, origin: Vfs.SeekOrigin) callconv(.c) Result;
+pub const encoderInitProc = *const fn (encoder: *Encoder) callconv(.c) Result;
+pub const encoderUninitProc = *const fn (encoder: *Encoder) callconv(.c) void;
+pub const encoderWritePcmFrameProc = *const fn (encoder: *Encoder, frames_in: *anyopaque, frame_count: u64, frames_written: *u64) callconv(.c) Result;
 
 //--------------------------------------------------------------------------------------------------
 //
@@ -3359,6 +3431,161 @@ test "zaudio.audio_buffer" {
     try sound.start();
 
     std.Thread.sleep(1e8);
+}
+
+test "zaudio.data_converter" {
+    init(std.testing.allocator);
+    defer deinit();
+
+    var ctrl_upward_saw_source = std.mem.zeroes([256]u8);
+    for (0..256) |i| {
+        ctrl_upward_saw_source[i] = @intCast(i);
+    }
+    var ctrl_upward_saw: []u8 = ctrl_upward_saw_source[0..ctrl_upward_saw_source.len];
+
+    var data_conv_cfg = DataConverter.Config.init(.unsigned8, .float32, 1, 2, 48000, 96000);
+    try expect(data_conv_cfg.format_in == .unsigned8);
+    try expect(data_conv_cfg.format_out == .float32);
+    try expect(data_conv_cfg.channels_in == 1);
+    try expect(data_conv_cfg.channels_out == 2);
+    try expect(data_conv_cfg.sample_rate_in == 48000);
+    try expect(data_conv_cfg.sample_rate_out == 96000);
+
+    // remove load pass filter in the converter
+    data_conv_cfg.resampling.linear.lpf_order = 0;
+
+    var data_conv = try DataConverter.create(data_conv_cfg);
+    defer data_conv.destroy();
+
+    var expected_frame_cnt: u64 = try data_conv.getExpectedOutputFrameCount(ctrl_upward_saw_source.len);
+    try expect(expected_frame_cnt == ctrl_upward_saw_source.len * 2); // doubled the sample rate, doubled the frames
+
+    const new_upward_saw = try std.testing.allocator.alloc(f32, expected_frame_cnt * data_conv_cfg.channels_out);
+    defer std.testing.allocator.free(new_upward_saw);
+
+    try data_conv.processPcmFrames(@ptrCast(ctrl_upward_saw.ptr), &ctrl_upward_saw.len, @ptrCast(new_upward_saw.ptr), &expected_frame_cnt);
+
+    // to validate the result samples, since the conversion process has latency, we need to offset the samples by the latency value
+    const input_latency = data_conv.getInputLatency();
+    const output_latency = data_conv.getOutPutLatency();
+    var prev_sample = -std.math.floatMax(f32);
+
+    for ((input_latency + output_latency)..new_upward_saw.len) |i| {
+        if (i % 2 == 1) continue;
+        try expect(new_upward_saw[i] > prev_sample);
+        try expect(new_upward_saw[i] == new_upward_saw[i + 1]);
+        prev_sample = new_upward_saw[i];
+    }
+}
+
+const TestingEncodedStorage = struct {
+    const Self = @This();
+    data_allocator: std.mem.Allocator,
+    buffer: []u8,
+    cursor: usize = 0,
+
+    pub fn init(allocator_in: std.mem.Allocator) !Self {
+        return Self{
+            .data_allocator = allocator_in,
+            .buffer = try allocator_in.alloc(u8, 1),
+        };
+    }
+
+    pub fn deinit(self: Self) void {
+        self.data_allocator.free(self.buffer);
+    }
+
+    pub fn writeSlice(self: *Self, input: []u8) !usize {
+        if (self.cursor + input.len >= self.buffer.len) {
+            self.buffer = try self.data_allocator.realloc(self.buffer, self.cursor + input.len);
+        }
+        @memmove(self.buffer[self.cursor .. self.cursor + input.len], input);
+        self.cursor += input.len;
+        return input.len;
+    }
+};
+
+fn testing_on_write(encoder: *Encoder, buffer_in: *anyopaque, bytes_to_write: usize, bytes_written: *usize) callconv(.c) Result {
+    const result_buffer: *TestingEncodedStorage = @ptrCast(@alignCast(encoder.getUserData()));
+    const buffer_in_data: [*]u8 = @ptrCast(@alignCast(buffer_in));
+    bytes_written.* += result_buffer.writeSlice(buffer_in_data[0..bytes_to_write]) catch return Result.out_of_memory;
+    return Result.success;
+}
+
+fn testing_on_seek(encoder: *Encoder, offset: i64, _: Vfs.SeekOrigin) callconv(.c) Result {
+    const result_buffer: *TestingEncodedStorage = @ptrCast(@alignCast(encoder.getUserData()));
+    result_buffer.cursor = @intCast(offset);
+    return Result.success;
+}
+
+test "zaudio.encoder_decoder_roundtrip" {
+    init(std.testing.allocator);
+    defer deinit();
+
+    var encoder_result = try TestingEncodedStorage.init(std.testing.allocator);
+    defer encoder_result.deinit();
+
+    const encoder_cfg = Encoder.Config.init(.wav, .unsigned8, 1, 44100);
+    try expect(encoder_cfg.channels == 1);
+    try expect(encoder_cfg.encoding_format == .wav);
+    try expect(encoder_cfg.format == .unsigned8);
+    try expect(encoder_cfg.sample_rate == 44100);
+
+    var ctrl_upward_saw_source = std.mem.zeroes([256]u8);
+    for (0..256) |i| {
+        ctrl_upward_saw_source[i] = @intCast(i);
+    }
+
+    { // the encoder.destroy() includes writing the file size for the wav file, so we need a block for the defer
+        var encoder = try Encoder.create(testing_on_write, testing_on_seek, @ptrCast(&encoder_result), encoder_cfg);
+        defer encoder.destroy();
+
+        _ = try encoder.writePcmFrame(@ptrCast(&ctrl_upward_saw_source), ctrl_upward_saw_source.len);
+    }
+
+    // this proves .wav has successfully generated
+    const result_list = encoder_result.buffer;
+    try expect(std.mem.eql(u8, "RIFF", result_list[0..4]));
+    try expect(std.mem.eql(u8, "WAVEfmt ", result_list[8..16]));
+    // The first 8 bytes are not include in the file_size of the .wav format, so we need to +8 for comparison
+    const file_size: usize = @as(usize, @intCast(result_list[4])) + (@as(usize, @intCast(result_list[5])) * 256) + 8;
+    try expect(file_size == result_list.len);
+
+    const decoder_cfg = Decoder.Config.init(.unsigned8, 1, 44100);
+    try expect(decoder_cfg.format == .unsigned8);
+    try expect(decoder_cfg.channels == 1);
+    try expect(decoder_cfg.sample_rate == 44100);
+
+    const decoder = try Decoder.createFromMemory(@ptrCast(result_list.ptr), result_list.len, decoder_cfg);
+    defer decoder.destroy();
+    try expect(try decoder.getAvailableFrames() == 256);
+
+    var format: Format = .unknown;
+    var num_channels: u32 = 0;
+    var sample_rate: u32 = 0;
+    try decoder.getDataFormat(&format, &num_channels, &sample_rate, null);
+    try expect(format == .unsigned8);
+    try expect(num_channels == 1);
+    try expect(sample_rate == 44100);
+
+    var ctrl_upward_saw_distination = std.mem.zeroes([256]u8);
+    const frames_read = try decoder.readPCMFrames(@ptrCast(&ctrl_upward_saw_distination), ctrl_upward_saw_distination.len);
+    try expect(frames_read == ctrl_upward_saw_distination.len);
+
+    // after encoding and decoding, the decoded result should be identical to the original saw sample.
+    for (ctrl_upward_saw_source, ctrl_upward_saw_distination) |src, dst| {
+        try expect(src == dst);
+    }
+
+    // this should change the cursor to the middle of the sample
+    try decoder.seekToPCMFrames(128);
+    var ctrl_upward_saw_distination_half = std.mem.zeroes([128]u8);
+    const frames_read_half = try decoder.readPCMFrames(@ptrCast(&ctrl_upward_saw_distination_half), ctrl_upward_saw_distination_half.len);
+    try expect(frames_read_half == frames_read / 2);
+
+    for (ctrl_upward_saw_distination_half, 0..) |half, i| {
+        try expect(half == ctrl_upward_saw_source[128 + i]);
+    }
 }
 
 test {
