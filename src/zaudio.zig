@@ -1048,7 +1048,7 @@ pub const Decoder = opaque {
     };
 
     pub const getUserData = zaudioDecoderGetUserData;
-    extern fn zaudioDecoderGetUserData(device: *const Encoder) ?*anyopaque;
+    extern fn zaudioDecoderGetUserData(device: *const Decoder) ?*anyopaque;
 
     pub const Config = extern struct {
         format: Format,

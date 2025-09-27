@@ -866,7 +866,7 @@ ma_result zaudioEncoderCreateFromFile(
 ){
     assert(file_path != NULL && config != NULL && out_handle != NULL);
     *out_handle = s_mem.onMalloc(sizeof(ma_encoder), s_mem.pUserData);
-    ma_result res = ma_encoder_init_file(file_path, config, out_handle);
+    ma_result res = ma_encoder_init_file(file_path, config, *out_handle);
     if (res != MA_SUCCESS){
         s_mem.onFree(*out_handle, s_mem.pUserData);
         *out_handle = NULL;
