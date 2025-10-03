@@ -458,6 +458,21 @@ void* zaudioDeviceGetUserData(ma_device* handle) {
     assert(handle != NULL);
     return handle->pUserData;
 }
+
+ma_uint32 zaudioDeviceGetSampleRate(ma_device* handle) {
+    assert(handle != NULL);
+    return handle->sampleRate;
+}
+
+ma_format zaudioDeviceGetPlaybackFormat(ma_device* handle) {
+    assert(handle != NULL);
+    return handle->playback.format;
+}
+
+ma_uint32 zaudioDeviceGetPlaybackChannels(ma_device* handle) {
+    assert(handle != NULL);
+    return handle->playback.channels;
+}
 //--------------------------------------------------------------------------------------------------
 void zaudioEngineConfigInit(ma_engine_config* out_config) {
     assert(out_config != NULL);

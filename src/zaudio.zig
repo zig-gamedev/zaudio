@@ -1976,6 +1976,15 @@ pub const Device = opaque {
     }
     extern fn ma_device_get_master_volume(device: *const Device, volume: *f32) Result;
 
+    pub const getSampleRate = zaudioDeviceGetSampleRate;
+    extern fn zaudioDeviceGetSampleRate(device: *const Device) u32;
+
+    pub const getPlaybackFormat = zaudioDeviceGetPlaybackFormat;
+    extern fn zaudioDeviceGetPlaybackFormat(device: *const Device) Format;
+
+    pub const getPlaybackChannels = zaudioDeviceGetPlaybackChannels;
+    extern fn zaudioDeviceGetPlaybackChannels(device: *const Device) u32;
+
     pub const Type = enum(c_int) {
         playback = 1,
         capture = 2,
@@ -3084,7 +3093,7 @@ fn zaudioMalloc(size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque {
 
     const mem = mem_allocator.?.alignedAlloc(
         u8,
-        .fromByteUnits(mem_alignment),
+        @ctz(@as(usize, mem_alignment)),
         size,
     ) catch @panic("zaudio: out of memory");
 
