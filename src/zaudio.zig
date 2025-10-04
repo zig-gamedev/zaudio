@@ -3094,7 +3094,7 @@ fn zaudioMalloc(size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque {
     const zig_version = @import("builtin").zig_version;
 
     const alignment = comptime if (zig_version.minor == 14)
-        @ctz(@as(usize, mem_alignment))
+        mem_alignment
     else
         std.mem.Alignment.fromByteUnits(mem_alignment);
 
