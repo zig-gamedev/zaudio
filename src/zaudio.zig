@@ -3091,9 +3091,16 @@ fn zaudioMalloc(size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque {
     mem_mutex.lock();
     defer mem_mutex.unlock();
 
+    const zig_version = @import("builtin").zig_version;
+
+    const alignment = comptime if (zig_version.minor == 14)
+        @ctz(@as(usize, mem_alignment))
+    else
+        std.mem.Alignment.fromByteUnits(mem_alignment);
+
     const mem = mem_allocator.?.alignedAlloc(
         u8,
-        @ctz(@as(usize, mem_alignment)),
+        alignment,
         size,
     ) catch @panic("zaudio: out of memory");
 
@@ -3337,7 +3344,10 @@ test "zaudio.audio_buffer" {
     init(std.testing.allocator);
     defer deinit();
 
-    var samples = try std.ArrayList(f32).initCapacity(std.testing.allocator, 1000);
+    const zig_version = @import("builtin").zig_version;
+    const ArrayList = if (zig_version.minor == 15) std.ArrayList else std.ArrayListUnmanaged;
+
+    var samples = try ArrayList(f32).initCapacity(std.testing.allocator, 1000);
     defer samples.deinit(std.testing.allocator);
 
     var prng = std.Random.DefaultPrng.init(0);
