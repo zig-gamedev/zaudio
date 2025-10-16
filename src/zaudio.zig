@@ -1107,19 +1107,19 @@ pub const Encoder = opaque {
     }
     extern fn zaudioEncoderCreate(on_write: encoderWriteProc, on_seek: encoderSeekProc, user_data: *anyopaque, config: *const Config, out_handle: ?*?*Encoder) Result;
 
-    pub fn createFromVfs(vfs: *Vfs, file_path: []const u8, config: Config) Error!*Encoder {
+    pub fn createFromVfs(vfs: *Vfs, file_path: [:0]const u8, config: Config) Error!*Encoder {
         var handle: ?*Encoder = null;
         try maybeError(zaudioEncoderCreateFromVfs(vfs, file_path.ptr, &config, &handle));
         return handle.?;
     }
-    extern fn zaudioEncoderCreateFromVfs(vfs: *Vfs, file_path: [*]const u8, config: *const Config, out_handle: ?*?*Encoder) Result;
+    extern fn zaudioEncoderCreateFromVfs(vfs: *Vfs, file_path: [*:0]const u8, config: *const Config, out_handle: ?*?*Encoder) Result;
 
-    pub fn createFromFile(file_path: []const u8, config: Config) Error!*Encoder {
+    pub fn createFromFile(file_path: [:0]const u8, config: Config) Error!*Encoder {
         var handle: ?*Encoder = null;
         try maybeError(zaudioEncoderCreateFromFile(file_path.ptr, &config, &handle));
         return handle.?;
     }
-    extern fn zaudioEncoderCreateFromFile(file_path: [*]const u8, config: *const Config, handle: ?*?*Encoder) Result;
+    extern fn zaudioEncoderCreateFromFile(file_path: [*:0]const u8, config: *const Config, handle: ?*?*Encoder) Result;
 
     pub fn writePcmFrame(encoder: *Encoder, frames_in: *anyopaque, frames_count: u64) Error!u64 {
         var frames_written: u64 = undefined;
