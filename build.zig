@@ -42,7 +42,10 @@ pub fn build(b: *std.Build) void {
 
     miniaudio.addCSourceFile(.{
         .file = b.path("src/zaudio.c"),
-        .flags = &.{"-std=c99"},
+        .flags = &.{
+            "-std=c99",
+            "-fno-sanitize=undefined",
+        },
     });
     miniaudio.addCSourceFile(.{
         .file = b.path("libs/miniaudio/miniaudio.c"),
