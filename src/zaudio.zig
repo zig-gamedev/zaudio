@@ -2857,6 +2857,7 @@ pub const Sound = opaque {
         loop_point_end_in_pcm_frames: u64,
         end_callback: ?EndProc,
         user_data: ?*anyopaque,
+        pitch_resampling: Resampler.Config,
         init_notifications: ResourceManager.PipelineNotifications,
         done_fence: ?*Fence,
         is_looping: Bool32,
