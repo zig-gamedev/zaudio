@@ -2228,6 +2228,8 @@ pub const Engine = opaque {
         resource_manager_vfs: ?*Vfs,
         on_process: ?Engine.ProcessProc,
         user_data: ?*anyopaque,
+        resource_manager_resampling: Resampler.Config,
+        pitch_resampling: Resampler.Config,
 
         pub fn init() Config {
             var config: Config = undefined;
