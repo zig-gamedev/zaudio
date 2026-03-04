@@ -613,7 +613,7 @@ void zaudioFenceDestroy(ma_fence* handle) {
 void zaudioAudioBufferConfigInit(
     ma_format format,
     ma_uint32 channels,
-    ma_int64 size_in_frames,
+    ma_uint64 size_in_frames,
     const void* data,
     ma_audio_buffer_config* out_config
 ) {

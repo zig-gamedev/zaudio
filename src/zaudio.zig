@@ -2765,7 +2765,7 @@ pub const Sound = opaque {
     pub fn seekToSecond(sound: *Sound, seek_point_in_second: f32) Error!void {
         try maybeError(ma_sound_seek_to_second(sound, seek_point_in_second));
     }
-    extern fn ma_sound_seek_to_second(sound: *Sound, seek_point_in_second: f64) Result;
+    extern fn ma_sound_seek_to_second(sound: *Sound, seek_point_in_second: f32) Result;
 
     pub fn getDataFormat(
         sound: *const Sound,
