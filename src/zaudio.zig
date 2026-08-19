@@ -2742,6 +2742,9 @@ pub const Sound = opaque {
     pub const getTimeInPcmFrames = ma_sound_get_time_in_pcm_frames;
     extern fn ma_sound_get_time_in_pcm_frames(sound: *const Sound) u64;
 
+    pub const getTimeInMilliseconds = ma_sound_get_time_in_milliseconds;
+    extern fn ma_sound_get_time_in_milliseconds(sound: *const Sound) u64;
+
     pub fn setLooping(sound: *Sound, looping: bool) void {
         ma_sound_set_looping(sound, if (looping) .true32 else .false32);
     }
