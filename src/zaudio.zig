@@ -3655,7 +3655,7 @@ const mem_alignment = 16;
 extern var zaudioMallocPtr: ?*const fn (size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque;
 
 fn zaudioMalloc(size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque {
-    std.Io.Threaded.mutexLock(&mem_mutex);
+    std.Io.Threaded.mutexLockUncancelable(&mem_mutex);
     defer std.Io.Threaded.mutexUnlock(&mem_mutex);
 
     const zig_version = @import("builtin").zig_version;
@@ -3679,7 +3679,7 @@ fn zaudioMalloc(size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque {
 extern var zaudioReallocPtr: ?*const fn (ptr: ?*anyopaque, size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque;
 
 fn zaudioRealloc(ptr: ?*anyopaque, size: usize, _: ?*anyopaque) callconv(.c) ?*anyopaque {
-    std.Io.Threaded.mutexLock(&mem_mutex);
+    std.Io.Threaded.mutexLockUncancelable(&mem_mutex);
     defer std.Io.Threaded.mutexUnlock(&mem_mutex);
 
     const old_size = if (ptr != null) mem_allocations.?.get(@intFromPtr(ptr.?)).? else 0;
@@ -3704,7 +3704,7 @@ extern var zaudioFreePtr: ?*const fn (maybe_ptr: ?*anyopaque, _: ?*anyopaque) ca
 
 fn zaudioFree(maybe_ptr: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
     if (maybe_ptr) |ptr| {
-        std.Io.Threaded.mutexLock(&mem_mutex);
+        std.Io.Threaded.mutexLockUncancelable(&mem_mutex);
         defer std.Io.Threaded.mutexUnlock(&mem_mutex);
 
         const size = mem_allocations.?.fetchRemove(@intFromPtr(ptr)).?.value;
