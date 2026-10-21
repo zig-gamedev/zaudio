@@ -14,10 +14,10 @@ Provided structs:
 - [x] `SoundGroup`
 - [x] `NodeGraph`
 - [x] `Fence`
-- [ ] `Context` (missing methods)
+- [x] `Context`
 - [ ] `ResourceManager` (missing methods)
 - [ ] `Log` (missing methods)
-- [x] `DataSource` (missing methods)
+- [x] `DataSource`
   - [x] `Waveform`
   - [x] `Noise`
   - [x] custom data sources

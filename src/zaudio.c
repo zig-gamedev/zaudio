@@ -473,6 +473,16 @@ ma_uint32 zaudioDeviceGetPlaybackChannels(ma_device* handle) {
     assert(handle != NULL);
     return handle->playback.channels;
 }
+
+ma_format zaudioDeviceGetCaptureFormat(ma_device* handle) {
+    assert(handle != NULL);
+    return handle->capture.format;
+}
+
+ma_uint32 zaudioDeviceGetCaptureChannels(ma_device* handle) {
+    assert(handle != NULL);
+    return handle->capture.channels;
+}
 //--------------------------------------------------------------------------------------------------
 void zaudioEngineConfigInit(ma_engine_config* out_config) {
     assert(out_config != NULL);
@@ -635,6 +645,30 @@ void zaudioAudioBufferDestroy(ma_audio_buffer* handle) {
     ma_audio_buffer_uninit_and_free(handle);
 }
 //--------------------------------------------------------------------------------------------------
+void zaudioContextConfigInit(ma_context_config *out_config) {
+    assert(out_config != NULL);
+    *out_config = ma_context_config_init();
+}
+
+ma_result zaudioContextCreate(const ma_backend *backends, ma_uint32 backend_count, const ma_context_config *config, ma_context **out_handle) {
+    assert(config && out_handle != NULL);
+    *out_handle = s_mem.onMalloc(sizeof(ma_context), s_mem.pUserData);
+
+    ma_result res = ma_context_init(backends, backend_count, config, *out_handle);
+    if (res != MA_SUCCESS) {
+        s_mem.onFree(*out_handle, s_mem.pUserData);
+        *out_handle = NULL;
+    }
+    return res;
+}
+
+void zaudioContextDestroy(ma_context *handle) {
+    assert(handle != NULL);
+    ma_context_uninit(handle); // returns an error code?
+    s_mem.onFree(handle, s_mem.pUserData);
+};
+
+//--------------------------------------------------------------------------------------------------
 //
 // C ABI workarounds
 //
@@ -781,7 +815,7 @@ ma_result zaudioDecoderCreateFromMemory(
         s_mem.onFree(*out_handle, s_mem.pUserData);
         *out_handle = NULL;
     }
-    return res;       
+    return res;      
 }
 
 ma_result zaudioDecoderCreateFromVfs(
