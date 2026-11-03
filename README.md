@@ -39,6 +39,12 @@ Provided structs:
 
 ## Getting started
 
+Add this package to `build.zig.zon`:
+
+```
+zig fetch --save git+https://github.com/zig-gamedev/zaudio.git
+```
+
 In your `build.zig` add:
 
 ```zig
@@ -47,7 +53,7 @@ pub fn build(b: *std.Build) void {
 
     const zaudio = b.dependency("zaudio", .{});
     exe.root_module.addImport("zaudio", zaudio.module("root"));
-    exe.linkLibrary(zaudio.artifact("miniaudio"));
+    exe.root_module.linkLibrary(zaudio.artifact("miniaudio"));
 }
 ```
 
